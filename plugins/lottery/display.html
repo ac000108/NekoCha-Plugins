@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lottery-box {
+            position: relative;
+            width: 260px;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .lottery-box.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 50%, #ffffff 100%);
+            border-radius: 28px;
+            padding: 50px 40px;
+            box-shadow:
+                0 30px 80px rgba(79, 70, 229, 0.2),
+                0 15px 40px rgba(99, 102, 241, 0.15),
+                0 8px 20px rgba(129, 140, 248, 0.1);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(165, 180, 252, 0.4);
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.08) 0%, transparent 60%);
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { transform: translate(-30%, -30%); opacity: 0.6; }
+            50% { transform: translate(30%, 30%); opacity: 0.3; }
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .avatar-wrapper {
+            position: relative;
+            margin: 0 auto 25px;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            border-radius: 50%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            color: white;
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 10px 30px rgba(102, 126, 234, 0.5),
+                0 0 0 4px rgba(102, 126, 234, 0.15);
+        }
+
+        .avatar.show {
+            opacity: 1;
+            transform: scale(1);
+            animation: pulse-glow 2.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 
+                    0 10px 30px rgba(102, 126, 234, 0.5),
+                    0 0 0 4px rgba(102, 126, 234, 0.15);
+            }
+            50% { 
+                box-shadow: 
+                    0 15px 45px rgba(102, 126, 234, 0.7),
+                    0 0 0 6px rgba(102, 126, 234, 0.25),
+                    0 0 40px rgba(118, 75, 162, 0.4);
+            }
+        }
+
+        .avatar-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 95px;
+            height: 95px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            animation: ring-pulse 2s ease-in-out infinite;
+        }
+
+        .avatar-ring:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        .avatar-ring:nth-child(3) {
+            animation-delay: 1s;
+        }
+
+        @keyframes ring-pulse {
+            0% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            50% { 
+                opacity: 0.5; 
+            }
+            100% { 
+                opacity: 0; 
+                transform: translate(-50%, -50%) scale(1.3);
+            }
+        }
+
+        .user-name {
+            font-size: 24px;
+            color: #000000;
+            font-weight: 900;
+            margin-bottom: 25px;
+            opacity: 0;
+            transform: translateY(-5px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition-delay: 0.1s;
+            letter-spacing: 1px;
+        }
+
+        .user-name.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .divider {
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #667eea, #764ba2, #f093fb, transparent);
+            margin: 0 auto 28px;
+            border-radius: 2px;
+            opacity: 0;
+            transform: scaleX(0.7);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition-delay: 0.2s;
+            position: relative;
+        }
+
+        .divider.show {
+            opacity: 1;
+            transform: scaleX(1);
+            animation: divider-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes divider-glow {
+            0%, 100% { 
+                opacity: 0.8;
+                box-shadow: 0 0 10px rgba(102, 126, 234, 0.4);
+            }
+            50% { 
+                opacity: 1;
+                box-shadow: 0 0 20px rgba(102, 126, 234, 0.7);
+            }
+        }
+
+        .sign-title {
+            font-size: 30px;
+            color: #4338ca;
+            font-weight: 900;
+            margin-bottom: 12px;
+            opacity: 0;
+            transform: translateY(5px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition-delay: 0.3s;
+            letter-spacing: 2px;
+        }
+
+        .sign-title.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .sign-content {
+            font-size: 19px;
+            color: #1f2937;
+            font-weight: 600;
+            line-height: 1.8;
+            opacity: 0;
+            transform: translateY(5px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition-delay: 0.4s;
+        }
+
+        .sign-content.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="lottery-box" id="lotteryBox">
+            <div class="card">
+                <div class="card-content">
+                    <div class="avatar-wrapper">
+                        <div class="avatar" id="avatar">👤</div>
+                        <div class="avatar-ring"></div>
+                        <div class="avatar-ring"></div>
+                        <div class="avatar-ring"></div>
+                    </div>
+                    <div class="user-name" id="userName">幸运用户</div>
+                    <div class="divider" id="divider"></div>
+                    <div class="sign-title" id="signTitle">「待抽签」</div>
+                    <div class="sign-content" id="signContent">发送"抽签"弹幕开始抽签</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _parts = window.location.pathname.split('/').filter(Boolean);
+        const ROOM_ID = _parts[1] || null;
+        const PLUGIN_NAME = _parts[3] || null;
+        
+        const lotteryBox = document.getElementById('lotteryBox');
+        const avatar = document.getElementById('avatar');
+        const userName = document.getElementById('userName');
+        const divider = document.getElementById('divider');
+        const signTitle = document.getElementById('signTitle');
+        const signContent = document.getElementById('signContent');
+        
+        let isDrawing = false;
+        let isRandomMode = false;
+        let triggerWord = '抽签';
+        let signList = [];
+        let drawQueue = []; // 抽签请求队列
+
+        // 解析签文列表（与服务端相同的解析逻辑）
+        function parseSignList(configSignList) {
+            const result = [];
+            if (!configSignList || !Array.isArray(configSignList)) {
+                return result;
+            }
+            for (const item of configSignList) {
+                if (typeof item === 'object' && item.title && item.content) {
+                    result.push({title: item.title, content: item.content});
+                } else {
+                    const str = String(item).trim();
+                    if (str.startsWith('「') && str.includes('」')) {
+                        const idx = str.indexOf('」');
+                        result.push({
+                            title: str.substring(0, idx + 1),
+                            content: str.substring(idx + 1).replace(/[,，]/g, '\n')
+                        });
+                    } else {
+                        result.push({title: str, content: ''});
+                    }
+                }
+            }
+            return result;
+        }
+
+        // 加载配置（与服务端使用同一配置文件）
+        async function loadConfig() {
+            if (!ROOM_ID) return;
+            try {
+                const response = await fetch(`/rooms/${ROOM_ID}/plugins`);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const pluginData = result.data.find(p => p.name === PLUGIN_NAME);
+                    if (pluginData) {
+                        const config = pluginData.config;
+                        isRandomMode = config['全随机模式'] || false;
+                        triggerWord = config['触发词'] || '抽签';
+                        signList = parseSignList(config['签文列表']);
+                    }
+                }
+            } catch (e) {
+                // 静默处理配置加载失败
+            }
+        }
+
+        // 抽签算法（与服务端完全相同）
+        function calculateSign(uid, timestamp) {
+            if (signList.length === 0) {
+                return null;
+            }
+            
+            let index;
+            const uidNum = parseInt(uid) || 0;
+            
+            if (isRandomMode) {
+                // 全随机模式：时间戳参与运算，每次抽签结果都不同
+                const ts = parseInt(timestamp) || Math.floor(Date.now() / 1000);
+                index = (ts + uidNum) % signList.length;
+            } else {
+                // 固定模式：同一天同一用户结果相同
+                const now = new Date();
+                const dateValue = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+                index = (dateValue + uidNum) % signList.length;
+            }
+            
+            return signList[index];
+        }
+
+        // 展示抽签结果
+        async function showLotteryResult(drawerName, drawerId, avatarUrl, sign) {
+            if (isDrawing) return;
+            
+            isDrawing = true;
+            lotteryBox.classList.add('show');
+            
+            userName.textContent = drawerName || '幸运用户';
+            signTitle.textContent = sign.title;
+            signContent.textContent = sign.content;
+            
+            avatar.classList.remove('show');
+            userName.classList.remove('show');
+            divider.classList.remove('show');
+            signTitle.classList.remove('show');
+            signContent.classList.remove('show');
+            
+            setTimeout(() => {
+                if (avatarUrl) {
+                    const proxyUrl = '/api/proxy/avatar?url=' + encodeURIComponent(avatarUrl);
+                    const img = new Image();
+                    img.onload = function() {
+                        img.style.width = '100%';
+                        img.style.height = '100%';
+                        img.style.borderRadius = '50%';
+                        img.style.objectFit = 'cover';
+                        avatar.innerHTML = '';
+                        avatar.appendChild(img);
+                        avatar.classList.add('show');
+                    };
+                    img.onerror = function() {
+                        avatar.innerHTML = '👤';
+                        avatar.classList.add('show');
+                    };
+                    img.src = proxyUrl;
+                } else {
+                    avatar.innerHTML = '👤';
+                    avatar.classList.add('show');
+                }
+                
+                userName.classList.add('show');
+                divider.classList.add('show');
+                signTitle.classList.add('show');
+                signContent.classList.add('show');
+                
+                setTimeout(() => {
+                    avatar.classList.remove('show');
+                    userName.classList.remove('show');
+                    divider.classList.remove('show');
+                    signTitle.classList.remove('show');
+                    signContent.classList.remove('show');
+                    
+                    setTimeout(() => {
+                        lotteryBox.classList.remove('show');
+                        isDrawing = false;
+                        
+                        // 当前抽签动画结束，继续处理队列中的下一个请求
+                        processQueue();
+                    }, 400);
+                }, 4000);
+            }, 500);
+        }
+
+        // 处理弹幕消息（前端自己计算抽签结果）
+        async function handleDanmuMessage(msg) {
+            // 检查消息类型是否为弹幕
+            if (msg['消息类型'] !== '弹幕') {
+                return;
+            }
+            
+            // 检查是否包含触发词
+            const content = msg['弹幕内容'] || '';
+            if (!content.includes(triggerWord)) {
+                return;
+            }
+            
+            // 获取用户信息
+            const userName = msg['用户名'];
+            const userId = msg['用户ID'];
+            const avatarUrl = msg['头像URL'];
+            const timestamp = msg['时间戳'];
+            
+            // 使用与服务端相同的算法计算结果
+            const sign = calculateSign(userId, timestamp);
+            if (sign) {
+                // 将抽签请求加入队列
+                drawQueue.push({
+                    userName: userName,
+                    userId: userId,
+                    avatarUrl: avatarUrl,
+                    sign: sign
+                });
+                
+                // 如果当前没有正在进行的抽签，立即处理队列
+                if (!isDrawing) {
+                    processQueue();
+                }
+            }
+        }
+        
+        // 处理抽签队列
+        async function processQueue() {
+            if (isDrawing || drawQueue.length === 0) {
+                return;
+            }
+            
+            // 取出队列中的第一个请求
+            const request = drawQueue.shift();
+            await showLotteryResult(request.userName, request.userId, request.avatarUrl, request.sign);
+        }
+
+        // 连接SSE接收弹幕消息
+        function connectSSE() {
+            if (!ROOM_ID) return;
+            const sseUrl = `/api/events?plugin=${PLUGIN_NAME}&room_id=${ROOM_ID}`;
+            const eventSource = new EventSource(sseUrl);
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const msg = JSON.parse(event.data);
+                    
+                    // 监听配置更新消息，收到后立即刷新配置
+                    if (msg.type === 'config_updated' && msg.plugin === currentPlugin) {
+                        loadConfig();
+                        return;
+                    }
+                    
+                    // 处理弹幕消息（前端自己计算抽签结果）
+                    handleDanmuMessage(msg);
+                } catch (e) {
+                    // 静默处理解析失败
+                }
+            };
+
+            eventSource.onerror = function() {
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        loadConfig();
+        connectSSE();
+    </script>
+</body>
+</html>

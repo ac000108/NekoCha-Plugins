@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>历史查询</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-dark: #4f46e5;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --hover: #f8fafc;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --radius: 10px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        
+        html, body { height: 100%; }
+        body {
+            padding: 24px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 22px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Main card */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            gap: 4px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .tab {
+            padding: 14px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border: none;
+            background: none;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        /* Tab content */
+        .tab-content { display: none; flex: 1; flex-direction: column; min-height: 0; }
+        .tab-content.active { display: flex; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Toolbar */
+        .toolbar {
+            padding: 16px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--card);
+            flex-shrink: 0;
+        }
+        .search-input, .value-input {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .search-input:focus, .value-input:focus, .time-input:focus { border-color: var(--primary); background: white; }
+        .search-input { width: 280px; }
+        .value-input { width: 140px; }
+        .time-input {
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            background: var(--bg);
+            color: var(--text);
+            width: 175px;
+            cursor: pointer;
+        }
+        .time-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* 礼物汇总条 */
+        .summary-bar {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
+        }
+        .summary-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        .summary-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .summary-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+        }
+        .summary-value.currency::before { content: 'CNY '; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+        .summary-divider { width: 1px; height: 28px; background: var(--border); }
+        
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: var(--text-secondary);
+        }
+        .btn-secondary:hover { background: #e2e8f0; color: var(--text); }
+        
+        /* Table */
+        .table-scroll {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .table-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .table-scroll::-webkit-scrollbar-track { background: transparent; }
+        .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            z-index: 1;
+        }
+        tbody td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-light);
+            color: var(--text);
+        }
+        tbody tr:hover { background: var(--hover); }
+        tbody tr:last-child td { border-bottom: none; }
+        
+        /* User column */
+        .user-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border);
+        }
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .user-name {
+            font-weight: 500;
+            color: var(--text);
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .medal-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            background: #e2e8f0;
+            color: var(--text-secondary);
+            width: fit-content;
+        }
+        .medal-tag.medal-总督 { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .medal-tag.medal-提督 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; }
+        .medal-tag.medal-舰长 { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        
+        /* Gift cell */
+        .gift-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .gift-img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #f1f5f9;
+        }
+        /* Danmu image thumbnails */
+        .danmu-img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #f1f5f9;
+            cursor: zoom-in;
+            transition: transform 0.15s ease;
+        }
+        .danmu-img:hover {
+            transform: scale(2.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10;
+            position: relative;
+        }
+        .gift-fallback {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 6px;
+            font-size: 18px;
+        }
+        .gift-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .gift-name {
+            font-weight: 500;
+            color: var(--text);
+        }
+        .gift-blind {
+            font-size: 11px;
+            color: var(--warning);
+        }
+        
+        /* SC cell */
+        .sc-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sc-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .sc-message {
+            color: var(--text);
+            word-break: break-all;
+        }
+        
+        /* Other cells */
+        .cell-money { font-weight: 600; color: var(--success); }
+        .cell-profit-pos { color: var(--success); font-weight: 600; }
+        .cell-profit-neg { color: var(--danger); font-weight: 600; }
+        .cell-profit-none { color: var(--text-muted); }
+        .cell-time { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+        .cell-count { font-weight: 600; color: var(--primary); }
+        .cell-crown {
+            display: inline-block;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .cell-id { color: var(--text-muted); font-size: 12px; }
+        
+        /* Empty/Loading */
+        .empty-state, .loading {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--text-muted);
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+        
+        /* Load more sentinel */
+        .load-more {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .load-more.done { color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>历史查询</h1>
+    </div>
+    
+    <div class="card">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('danmu')">弹幕记录</button>
+            <button class="tab" onclick="showTab('gift')">礼物记录</button>
+            <button class="tab" onclick="showTab('interact')">互动记录</button>
+            <button class="tab" onclick="showTab('guard')">舰长记录</button>
+            <button class="tab" onclick="showTab('super_chat')">醒目留言</button>
+        </div>
+        
+        <!-- 弹幕 -->
+        <div id="danmu" class="tab-content active">
+            <div class="toolbar">
+                <input type="text" class="search-input" id="danmuKeyword" placeholder="搜索弹幕内容... (Enter 搜索)" onkeydown="if(event.key==='Enter') loadDanmu()">
+                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="danmuStart">
+                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="danmuEnd">
+                <button class="btn btn-primary" onclick="loadDanmu()">查询</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('danmuKeyword').value='';document.getElementById('danmuStart').value='';document.getElementById('danmuEnd').value=''; loadDanmu()">重置</button>
+            </div>
+            <div class="table-scroll" id="danmuWrapper">
+                <table id="danmuTable">
+                    <tbody><tr><td class="loading"><span class="spinner"></span>加载中...</td></tr></tbody>
+                </table>
+                <div class="load-more" id="danmuLoadMore"></div>
+            </div>
+        </div>
+        
+        <!-- 礼物 -->
+        <div id="gift" class="tab-content">
+            <div class="toolbar">
+                <input type="text" class="search-input" id="giftKeyword" placeholder="搜索礼物名称/盲盒... (Enter 搜索)" onkeydown="if(event.key==='Enter') loadGifts()">
+                <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" onkeydown="if(event.key==='Enter') loadGifts()">
+                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="giftStart">
+                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="giftEnd">
+                <button class="btn btn-primary" onclick="loadGifts()">查询</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value=''; loadGifts()">重置</button>
+            </div>
+            <div class="summary-bar" id="giftSummaryBar">
+                <div class="summary-item">
+                    <span class="summary-label">实际收入</span>
+                    <span class="summary-value currency" id="giftSummaryTotal">0.00</span>
+                </div>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                    <span class="summary-label">礼物条数</span>
+                    <span class="summary-value" id="giftSummaryCount" style="font-size:18px;">0</span>
+                </div>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                    <span class="summary-label">盲盒盈亏</span>
+                    <span class="summary-value currency" id="giftSummaryBlind" style="font-size:16px;">0.00</span>
+                </div>
+            </div>
+            <div class="table-scroll" id="giftWrapper">
+                <table id="giftTable">
+                    <tbody><tr><td class="loading"><span class="spinner"></span>加载中...</td></tr></tbody>
+                </table>
+                <div class="load-more" id="giftLoadMore"></div>
+            </div>
+        </div>
+        
+        <!-- 互动 -->
+        <div id="interact" class="tab-content">
+            <div class="toolbar">
+                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="interactStart">
+                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="interactEnd">
+                <button class="btn btn-primary" onclick="loadInteract()">查询</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('interactStart').value='';document.getElementById('interactEnd').value=''; loadInteract()">重置</button>
+            </div>
+            <div class="table-scroll" id="interactWrapper">
+                <table id="interactTable">
+                    <tbody><tr><td class="loading"><span class="spinner"></span>加载中...</td></tr></tbody>
+                </table>
+                <div class="load-more" id="interactLoadMore"></div>
+            </div>
+        </div>
+        
+        <!-- 舰长 -->
+        <div id="guard" class="tab-content">
+            <div class="toolbar">
+                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="guardStart">
+                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="guardEnd">
+                <button class="btn btn-primary" onclick="loadGuard()">查询</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('guardStart').value='';document.getElementById('guardEnd').value=''; loadGuard()">重置</button>
+            </div>
+            <div class="table-scroll" id="guardWrapper">
+                <table id="guardTable">
+                    <tbody><tr><td class="loading"><span class="spinner"></span>加载中...</td></tr></tbody>
+                </table>
+                <div class="load-more" id="guardLoadMore"></div>
+            </div>
+        </div>
+        
+        <!-- 醒目留言 -->
+        <div id="super_chat" class="tab-content">
+            <div class="toolbar">
+                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="scStart">
+                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="scEnd">
+                <button class="btn btn-primary" onclick="loadSC()">查询</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('scStart').value='';document.getElementById('scEnd').value=''; loadSC()">重置</button>
+            </div>
+            <div class="table-scroll" id="scWrapper">
+                <table id="scTable">
+                    <tbody><tr><td class="loading"><span class="spinner"></span>加载中...</td></tr></tbody>
+                </table>
+                <div class="load-more" id="scLoadMore"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _parts = window.location.pathname.split('/').filter(Boolean);
+        const ROOM_ID = _parts[1] || null;
+        const PLUGIN_NAME = _parts[3] || null;
+        const PAGE_SIZE = 50;
+
+        // datetime-local 值 → Unix 秒时间戳（空值返回 null）
+        function dateToTs(val) {
+            if (!val) return null;
+            const ts = Math.floor(new Date(val).getTime() / 1000);
+            return isNaN(ts) ? null : ts;
+        }
+
+        // 构建额外 AND 条件：把时间范围条件拼到已有 whereSql 后面
+        // 注意：本函数只输出 AND 片段（或空），不输出 WHERE 关键字
+        function appendTimeRange(whereSql, params, startId, endId) {
+            const startTs = dateToTs(document.getElementById(startId).value);
+            const endTs = dateToTs(document.getElementById(endId).value);
+            const parts = [];
+            if (startTs !== null) {
+                parts.push('时间戳 >= ?');
+                params.push(startTs);
+            }
+            if (endTs !== null) {
+                parts.push('时间戳 <= ?');
+                params.push(endTs);
+            }
+            if (parts.length === 0) return whereSql;
+            const extra = parts.join(' AND ');
+            return whereSql ? (whereSql + ' AND ' + extra) : extra;
+        }
+
+        // 列头映射：数据库字段 -> 显示名称
+        const HEADER_MAP = {
+            '弹幕': {
+                '头像URL': '用户',
+                '弹幕内容': '内容',
+                '时间戳': '时间'
+            },
+            '礼物': {
+                '头像URL': '用户',
+                '礼物图片URL': '礼物',
+                '礼物数量': '数量',
+                '总价值': '花费',
+                '盲盒盈亏': '盈亏',
+                '时间戳': '时间'
+            },
+            '醒目留言': {
+                '头像URL': '用户',
+                '留言内容': '留言',
+                '价格': '花费',
+                '持续时间': '时长',
+                '时间戳': '时间'
+            },
+            '互动': {
+                '头像URL': '用户',
+                '动作': '动作',
+                '时间戳': '时间'
+            },
+            '舰长': {
+                '头像URL': '用户',
+                '开通数量': '数量',
+                '价格': '花费',
+                '时间戳': '时间'
+            }
+        };
+
+        // 完全隐藏的内部字段（不出现在任何列）
+        const HIDDEN_FIELDS = {
+            '弹幕': ['id', '用户名', '用户ID', '粉丝牌名称', '粉丝牌等级', '舰长等级', '图片链接'],
+            '礼物': ['id', '用户名', '用户ID', '礼物ID', '礼物名称', '礼物单价', '粉丝牌名称', '粉丝牌等级', '舰长等级', '盲盒名称', '是否盲盒'],
+            '醒目留言': ['id', '用户名', '用户ID', '粉丝牌名称', '粉丝牌等级', '舰长等级', '留言颜色'],
+            '互动': ['id', '用户名', '用户ID', '粉丝牌名称', '粉丝牌等级', '舰长等级'],
+            '舰长': ['id', '用户名', '用户ID', '粉丝牌名称', '粉丝牌等级', '舰长等级']
+        };
+
+        // 类型到表名的映射
+        const TABLE_MAP = {
+            'danmu': { name: 'danmu', type: '弹幕' },
+            'gift': { name: 'gift', type: '礼物' },
+            'super_chat': { name: 'super_chat', type: '醒目留言' },
+            'interact': { name: 'interact', type: '互动' },
+            'guard': { name: 'guard', type: '舰长' }
+        };
+
+        // 各tab的滚动加载状态
+        const tabState = {
+            danmu:   { offset: 0, loading: false, done: false },
+            gift:    { offset: 0, loading: false, done: false },
+            interact:{ offset: 0, loading: false, done: false },
+            guard:   { offset: 0, loading: false, done: false },
+            super_chat:{ offset: 0, loading: false, done: false }
+        };
+
+        // 当前激活的tab
+        let currentTab = 'danmu';
+
+        async function queryDB(sql, params = []) {
+            if (!ROOM_ID) return [];
+            const response = await fetch('/api/db/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'sql=' + encodeURIComponent(sql) + '&params=' + encodeURIComponent(JSON.stringify(params)) + '&room_id=' + encodeURIComponent(ROOM_ID)
+            });
+            return await response.json();
+        }
+
+        // 各 Tab 的数据加载函数映射
+        const TAB_LOADERS = {
+            danmu: (reset) => loadDanmu(reset),
+            gift: (reset) => loadGifts(reset),
+            interact: (reset) => loadInteract(reset),
+            guard: (reset) => loadGuard(reset),
+            super_chat: (reset) => loadSC(reset)
+        };
+
+        function showTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            // 点击切换时自动刷新该 Tab 的数据
+            if (TAB_LOADERS[tabName]) {
+                TAB_LOADERS[tabName](true);
+            }
+        }
+
+        // ---------- 无限滚动加载 ----------
+        function resetTabState(tabName) {
+            tabState[tabName].offset = 0;
+            tabState[tabName].done = false;
+            tabState[tabName].loading = false;
+        }
+
+        function setLoadMoreText(tabName, text, done = false) {
+            const el = document.getElementById(tabName + 'LoadMore');
+            if (el) {
+                el.textContent = text;
+                el.className = 'load-more' + (done ? ' done' : '');
+            }
+        }
+
+        // ---------- 数据加载 ----------
+        async function loadDanmu(reset = true) {
+            const state = tabState.danmu;
+            if (state.loading) return;
+            state.loading = true;
+
+            if (reset) {
+                state.offset = 0;
+                state.done = false;
+            }
+
+            const keyword = document.getElementById('danmuKeyword').value.trim();
+            let whereSql = '';
+            let params = [];
+            if (keyword) {
+                whereSql = '弹幕内容 LIKE ?';
+                params.push(`%${keyword}%`);
+            }
+            whereSql = appendTimeRange(whereSql, params, 'danmuStart', 'danmuEnd');
+            const dataSql = `SELECT * FROM danmu${whereSql ? ' WHERE ' + whereSql : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
+            params.push(PAGE_SIZE, state.offset);
+
+            try {
+                const data = await queryDB(dataSql, params);
+                const table = document.getElementById('danmuTable');
+                
+                if (state.offset === 0) {
+                    // 首次加载，清空表格
+                    table.innerHTML = '';
+                }
+
+                if (!data || data.length === 0) {
+                    if (state.offset === 0) {
+                        table.innerHTML = '<tbody><tr><td class="empty-state">暂无数据</td></tr></tbody>';
+                    }
+                    state.done = true;
+                    setLoadMoreText('danmu', '没有更多了', true);
+                    return;
+                }
+
+                appendRows(table, data, '弹幕');
+                state.offset += data.length;
+                
+                if (data.length < PAGE_SIZE) {
+                    state.done = true;
+                    setLoadMoreText('danmu', '没有更多了', true);
+                } else {
+                    setLoadMoreText('danmu', '滚动加载更多...');
+                }
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        async function loadGifts(reset = true) {
+            const state = tabState.gift;
+            if (state.loading) return;
+            state.loading = true;
+
+            if (reset) {
+                state.offset = 0;
+                state.done = false;
+            }
+
+            const minVal = parseFloat(document.getElementById('giftMinValue').value) || 0;
+            const minCoin = Math.round(minVal * 1000);
+            const keyword = document.getElementById('giftKeyword').value.trim();
+            let whereSql = '';
+            let params = [];
+            if (keyword && minCoin > 0) {
+                whereSql = '(礼物名称 LIKE ? OR 盲盒名称 LIKE ?) AND 总价值 >= ?';
+                params = [`%${keyword}%`, `%${keyword}%`, minCoin];
+            } else if (keyword) {
+                whereSql = '礼物名称 LIKE ? OR 盲盒名称 LIKE ?';
+                params = [`%${keyword}%`, `%${keyword}%`];
+            } else if (minCoin > 0) {
+                whereSql = '总价值 >= ?';
+                params = [minCoin];
+            }
+            whereSql = appendTimeRange(whereSql, params, 'giftStart', 'giftEnd');
+            const sqlWhereClause = whereSql ? ' WHERE ' + whereSql : '';
+            const dataSql = `SELECT * FROM gift${sqlWhereClause} ORDER BY id DESC LIMIT ? OFFSET ?`;
+            const summarySql = `SELECT COALESCE(SUM(总价值),0) as total, COUNT(*) as cnt, COALESCE(SUM(CASE WHEN 是否盲盒=1 THEN 盲盒盈亏 ELSE 0 END),0) as blind_profit FROM gift${sqlWhereClause}`;
+            const dataParams = [...params, PAGE_SIZE, state.offset];
+
+            try {
+                // 汇总查询（params 不传分页参数）
+                const summaryRows = await queryDB(summarySql, [...params]);
+                const summary = summaryRows[0] || { total: 0, cnt: 0, blind_profit: 0 };
+                const blindCNY = (summary.blind_profit || 0) / 1000;
+                // 实际收入 = 总价值 + 盲盒盈亏
+                const actualCNY = ((summary.total || 0) + (summary.blind_profit || 0)) / 1000;
+                document.getElementById('giftSummaryTotal').textContent = actualCNY.toFixed(2);
+                document.getElementById('giftSummaryCount').textContent = summary.cnt || 0;
+                // 盲盒盈亏：正绿色带 + 号，负红色，零灰色
+                const blindEl = document.getElementById('giftSummaryBlind');
+                const sign = blindCNY > 0 ? '+' : '';
+                blindEl.textContent = sign + blindCNY.toFixed(2);
+                blindEl.style.color = blindCNY > 0 ? '#10b981' : (blindCNY < 0 ? '#ef4444' : 'var(--text-muted)');
+
+                const data = await queryDB(dataSql, dataParams);
+                const table = document.getElementById('giftTable');
+                
+                if (state.offset === 0) {
+                    table.innerHTML = '';
+                }
+
+                if (!data || data.length === 0) {
+                    if (state.offset === 0) {
+                        table.innerHTML = '<tbody><tr><td class="empty-state">暂无数据</td></tr></tbody>';
+                    }
+                    state.done = true;
+                    setLoadMoreText('gift', '没有更多了', true);
+                    return;
+                }
+
+                appendRows(table, data, '礼物');
+                state.offset += data.length;
+                
+                if (data.length < PAGE_SIZE) {
+                    state.done = true;
+                    setLoadMoreText('gift', '没有更多了', true);
+                } else {
+                    setLoadMoreText('gift', '滚动加载更多...');
+                }
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        async function loadInteract(reset = true) {
+            const state = tabState.interact;
+            if (state.loading) return;
+            state.loading = true;
+
+            if (reset) {
+                state.offset = 0;
+                state.done = false;
+            }
+
+            let params = [];
+            const whereSql = appendTimeRange('', params, 'interactStart', 'interactEnd');
+            const dataSql = `SELECT * FROM interact${whereSql ? ' WHERE ' + whereSql : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
+            params.push(PAGE_SIZE, state.offset);
+
+            try {
+                const data = await queryDB(dataSql, params);
+                const table = document.getElementById('interactTable');
+                
+                if (state.offset === 0) {
+                    table.innerHTML = '';
+                }
+
+                if (!data || data.length === 0) {
+                    if (state.offset === 0) {
+                        table.innerHTML = '<tbody><tr><td class="empty-state">暂无数据</td></tr></tbody>';
+                    }
+                    state.done = true;
+                    setLoadMoreText('interact', '没有更多了', true);
+                    return;
+                }
+
+                appendRows(table, data, '互动');
+                state.offset += data.length;
+                
+                if (data.length < PAGE_SIZE) {
+                    state.done = true;
+                    setLoadMoreText('interact', '没有更多了', true);
+                } else {
+                    setLoadMoreText('interact', '滚动加载更多...');
+                }
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        async function loadGuard(reset = true) {
+            const state = tabState.guard;
+            if (state.loading) return;
+            state.loading = true;
+
+            if (reset) {
+                state.offset = 0;
+                state.done = false;
+            }
+
+            let params = [];
+            const whereSql = appendTimeRange('', params, 'guardStart', 'guardEnd');
+            const dataSql = `SELECT * FROM guard${whereSql ? ' WHERE ' + whereSql : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
+            params.push(PAGE_SIZE, state.offset);
+
+            try {
+                const data = await queryDB(dataSql, params);
+                const table = document.getElementById('guardTable');
+                
+                if (state.offset === 0) {
+                    table.innerHTML = '';
+                }
+
+                if (!data || data.length === 0) {
+                    if (state.offset === 0) {
+                        table.innerHTML = '<tbody><tr><td class="empty-state">暂无数据</td></tr></tbody>';
+                    }
+                    state.done = true;
+                    setLoadMoreText('guard', '没有更多了', true);
+                    return;
+                }
+
+                appendRows(table, data, '舰长');
+                state.offset += data.length;
+                
+                if (data.length < PAGE_SIZE) {
+                    state.done = true;
+                    setLoadMoreText('guard', '没有更多了', true);
+                } else {
+                    setLoadMoreText('guard', '滚动加载更多...');
+                }
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        async function loadSC(reset = true) {
+            const state = tabState.super_chat;
+            if (state.loading) return;
+            state.loading = true;
+
+            if (reset) {
+                state.offset = 0;
+                state.done = false;
+            }
+
+            let params = [];
+            const whereSql = appendTimeRange('', params, 'scStart', 'scEnd');
+            const dataSql = `SELECT * FROM super_chat${whereSql ? ' WHERE ' + whereSql : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
+            params.push(PAGE_SIZE, state.offset);
+
+            try {
+                const data = await queryDB(dataSql, params);
+                const table = document.getElementById('scTable');
+                
+                if (state.offset === 0) {
+                    table.innerHTML = '';
+                }
+
+                if (!data || data.length === 0) {
+                    if (state.offset === 0) {
+                        table.innerHTML = '<tbody><tr><td class="empty-state">暂无数据</td></tr></tbody>';
+                    }
+                    state.done = true;
+                    setLoadMoreText('super_chat', '没有更多了', true);
+                    return;
+                }
+
+                appendRows(table, data, '醒目留言');
+                state.offset += data.length;
+                
+                if (data.length < PAGE_SIZE) {
+                    state.done = true;
+                    setLoadMoreText('super_chat', '没有更多了', true);
+                } else {
+                    setLoadMoreText('super_chat', '滚动加载更多...');
+                }
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        async function loadMore(tabName) {
+            if (TAB_LOADERS[tabName]) {
+                await TAB_LOADERS[tabName](false);
+            }
+        }
+
+        // ---------- 渲染 ----------
+        function appendRows(table, data, type) {
+            const headerMap = HEADER_MAP[type] || {};
+            const hiddenFields = HIDDEN_FIELDS[type] || [];
+            
+            // 确定要显示的列（基于第一条数据的字段）
+            const rawHeaders = Object.keys(data[0]);
+            const displayHeaders = rawHeaders.filter(h => !hiddenFields.includes(h));
+            
+            // 首次加载生成表头 + 确保有 tbody
+            if (!table.querySelector('thead')) {
+                const headerRow = '<thead><tr>' + displayHeaders.map(h => {
+                    const displayName = headerMap[h] || h;
+                    return `<th>${displayName}</th>`;
+                }).join('') + '</tr></thead><tbody></tbody>';
+                table.insertAdjacentHTML('afterbegin', headerRow);
+            }
+            
+            // 追加数据行
+            const bodyRows = data.map(row => {
+                const cells = displayHeaders.map(h => {
+                    try { return formatCell(row, h, type); }
+                    catch(e) { console.error('formatCell error:', h, e); return '<td>-</td>'; }
+                });
+                return '<tr>' + cells.join('') + '</tr>';
+            }).join('');
+            
+            const tbody = table.querySelector('tbody');
+            if (tbody) {
+                tbody.insertAdjacentHTML('beforeend', bodyRows);
+            } else {
+                table.insertAdjacentHTML('beforeend', '<tbody>' + bodyRows + '</tbody>');
+            }
+        }
+
+        function formatCell(row, field, type) {
+            const value = row[field];
+            const rawValue = value !== undefined && value !== null ? String(value) : '';
+
+            // 用户列（头像+用户名+粉丝牌）
+            if (field === '头像URL') {
+                const avatar = escapeHtml(rawValue) || '';
+                const name = escapeHtml(row['用户名'] || '-');
+                const medalName = escapeHtml(row['粉丝牌名称'] || '');
+                const medalLevel = row['粉丝牌等级'] || '';
+                const guardLevel = escapeHtml(row['舰长等级'] || '');
+                
+                let medalHtml = '';
+                if (medalName) {
+                    let medalClass = 'medal-tag';
+                    if (guardLevel === '总督') medalClass += ' medal-总督';
+                    else if (guardLevel === '提督') medalClass += ' medal-提督';
+                    else if (guardLevel === '舰长') medalClass += ' medal-舰长';
+                    medalHtml = `<span class="${medalClass}">${medalName}${medalLevel ? 'Lv' + medalLevel : ''}</span>`;
+                }
+                
+                return `<td><div class="user-cell">
+                    ${avatar ? `<img class="user-avatar" src="/api/proxy/avatar?url=${encodeURIComponent(avatar)}" alt="" onerror="this.style.display='none'">` : ''}
+                    <div class="user-info">
+                        <span class="user-name">${name}</span>
+                        ${medalHtml}
+                    </div>
+                </div></td>`;
+            }
+
+            // 礼物列（图标+名称+盲盒）- 由 礼物图片URL 字段触发
+            if (field === '礼物图片URL') {
+                const giftId = row['礼物ID'] || '';
+                const giftName = escapeHtml(row['礼物名称'] || '-');
+                const isBlindBox = row['是否盲盒'] == 1;
+                const blindName = escapeHtml(row['盲盒名称'] || '');
+                const cdnUrl = escapeHtml(rawValue || '');
+
+                let imgHtml = '<span class="gift-fallback">🎁</span>';
+                if (giftId) {
+                    const safeName = giftName.replace(/[\\/:*?"<>|]/g, '_');
+                    const localFile = safeName + giftId + '.png';
+                    const proxyUrl = cdnUrl ? '/api/proxy/avatar?url=' + encodeURIComponent(cdnUrl) : '';
+                    const safeCdn = cdnUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    imgHtml = `<img class="gift-img" src="/gift_data/images/${encodeURIComponent(localFile)}" alt="" onerror="giftFallback(this,'${safeCdn}',${proxyUrl ? 1 : 0})">`;
+                }
+
+                let blindHtml = '';
+                if (isBlindBox && blindName) {
+                    blindHtml = `<span class="gift-blind">🎲 ${blindName}</span>`;
+                }
+
+                return `<td><div class="gift-cell">
+                    ${imgHtml}
+                    <div class="gift-info">
+                        <span class="gift-name">${giftName}</span>
+                        ${blindHtml}
+                    </div>
+                </div></td>`;
+            }
+
+            // 弹幕内容
+            if (field === '弹幕内容') {
+                const imgUrl = row['图片链接'] || '';
+                if (imgUrl) {
+                    const proxyUrl = '/api/proxy/avatar?url=' + encodeURIComponent(imgUrl);
+                    return `<td><img class="danmu-img" src="${proxyUrl}" alt="弹幕图片" loading="lazy" onerror="this.replaceWith(document.createTextNode('${escapeHtml(rawValue) || '图片'}'))"></td>`;
+                }
+                return `<td>${escapeHtml(rawValue) || '-'}</td>`;
+            }
+
+            // 留言内容（醒目留言）
+            if (field === '留言内容') {
+                const color = escapeHtml(row['留言颜色'] || '');
+                let content = escapeHtml(rawValue) || '-';
+                if (color) {
+                    content = `<span style="color:${color};">${content}</span>`;
+                }
+                return `<td><div class="sc-cell">${color ? `<span class="sc-color-dot" style="background:${color};"></span>` : ''}<span class="sc-message">${content}</span></div></td>`;
+            }
+
+            // 留言颜色
+            if (field === '留言颜色') {
+                if (!rawValue) return '<td>-</td>';
+                return `<td><span class="sc-color-dot" style="background:${rawValue};display:inline-block;"></span> <span style="color:${rawValue};">${rawValue}</span></td>`;
+            }
+
+            // 粉丝牌名称（单独展示时）
+            if (field === '粉丝牌名称') {
+                const name = escapeHtml(rawValue);
+                if (!name) return '<td>-</td>';
+                const level = row['粉丝牌等级'] || '';
+                return `<td><span class="medal-tag">${name}${level ? 'Lv' + level : ''}</span></td>`;
+            }
+
+            // 舰长等级（单独展示时）
+            if (field === '舰长等级') {
+                if (!rawValue) return '<td>-</td>';
+                return `<td><span class="cell-crown">${escapeHtml(rawValue)}</span></td>`;
+            }
+
+            // 数量
+            if (field === '礼物数量') {
+                return `<td class="cell-count">×${escapeHtml(rawValue) || 1}</td>`;
+            }
+
+            // 总价值
+            if (field === '总价值') {
+                const cny = (parseInt(rawValue) || 0) / 1000;
+                return `<td class="cell-money">CNY ${cny.toFixed(2)}</td>`;
+            }
+
+            // 盲盒盈亏
+            if (field === '盲盒盈亏') {
+                const isBlindBox = row['是否盲盒'] == 1;
+                if (!isBlindBox) return '<td class="cell-profit-none">-</td>';
+                const cny = (parseInt(rawValue) || 0) / 1000;
+                const sign = cny > 0 ? '+' : '';
+                const cls = cny > 0 ? 'cell-profit-pos' : (cny < 0 ? 'cell-profit-neg' : 'cell-profit-none');
+                return `<td class="${cls}">CNY ${sign}${cny.toFixed(2)}</td>`;
+            }
+
+            // 价格（舰长=金瓜子÷1000，醒目留言=人民币元直接用）
+            if (field === '价格') {
+                const raw = parseInt(rawValue) || 0;
+                const cny = type === '醒目留言' ? raw : raw / 1000;
+                return `<td class="cell-money">CNY ${cny.toFixed(2)}</td>`;
+            }
+
+            // 开通数量
+            if (field === '开通数量') {
+                return `<td class="cell-count">${escapeHtml(rawValue) || 1}个月</td>`;
+            }
+
+            // 持续时间
+            if (field === '持续时间') {
+                const secs = parseInt(rawValue) || 0;
+                let text;
+                if (secs >= 60) {
+                    text = Math.floor(secs / 60) + '分' + (secs % 60) + '秒';
+                } else {
+                    text = secs + '秒';
+                }
+                return `<td style="color:var(--primary);font-weight:500;">${text}</td>`;
+            }
+
+            // 动作
+            if (field === '动作') {
+                const actionMap = { '进入': '🚪', '进入直播间': '🚪', '关注': '❤️', '分享': '📣' };
+                const icon = actionMap[rawValue] || '👋';
+                return `<td>${icon} ${escapeHtml(rawValue)}</td>`;
+            }
+
+            // 弹幕图片（表情包弹幕）
+            if (field === '图片链接') {
+                const url = escapeHtml(rawValue || '');
+                if (!url) return '<td>-</td>';
+                const proxyUrl = '/api/proxy/avatar?url=' + encodeURIComponent(url);
+                return `<td><a href="${proxyUrl}" target="_blank" rel="noopener"><img class="danmu-img" src="${proxyUrl}" alt="弹幕图片" loading="lazy" onerror="this.replaceWith(document.createElement('span')).textContent='🖼️'"></a></td>`;
+            }
+
+            // 时间戳
+            if (field === '时间戳') {
+                const val = String(rawValue || '');
+                if (!val) return '<td class="cell-time">-</td>';
+                if (/^\d{4}-\d{2}-\d{2}/.test(val)) return `<td class="cell-time">${val}</td>`;
+                let ts = parseInt(val);
+                if (isNaN(ts) || ts <= 0) return `<td class="cell-time">${val}</td>`;
+                if (ts < 1e12) ts *= 1000;
+                const d = new Date(ts);
+                if (isNaN(d.getTime())) return `<td class="cell-time">${val}</td>`;
+                const pad = n => String(n).padStart(2, '0');
+                const formatted = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                return `<td class="cell-time">${formatted}</td>`;
+            }
+
+            // 默认
+            return `<td>${escapeHtml(rawValue) || '-'}</td>`;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function giftFallback(img, cdnUrl, hasCdn) {
+            hasCdn = !!hasCdn;
+            if (!img.dataset.fb) {
+                img.dataset.fb = '1';
+                const giftId = img.src.match(/\/(\d+)\.png$/);
+                if (giftId && giftId[1] !== '0') {
+                    img.src = '/gift_data/images/' + giftId[1] + '.png';
+                    return;
+                }
+            }
+            if (hasCdn && !img.dataset.fc) {
+                img.dataset.fc = '1';
+                img.src = '/api/proxy/avatar?url=' + encodeURIComponent(cdnUrl);
+                return;
+            }
+            const fb = img.nextElementSibling;
+            if (fb && fb.classList.contains('gift-fallback')) {
+                img.style.display = 'none';
+                fb.style.display = 'flex';
+            }
+        }
+
+        // ---------- 初始化 ----------
+        // 为每个tab绑定滚动监听
+        ['danmu', 'gift', 'interact', 'guard', 'super_chat'].forEach(tab => {
+            const wrapper = document.getElementById(tab + 'Wrapper');
+            if (wrapper) {
+                wrapper.addEventListener('scroll', () => {
+                    const state = tabState[tab];
+                    if (state.loading || state.done) return;
+                    const scrollBottom = wrapper.scrollHeight - wrapper.scrollTop - wrapper.clientHeight;
+                    if (scrollBottom < 100) {
+                        loadMore(tab);
+                    }
+                });
+            }
+        });
+
+        // 初始加载（仅默认弹幕 Tab，其余 Tab 点击时自动加载）
+        loadDanmu(true);
+    </script>
+</body>
+</html>

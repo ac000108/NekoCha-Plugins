@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>礼物展示</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body { height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #eef2f7;
+            overflow: hidden;
+        }
+
+        
+        .scroll {
+            height: 100vh;
+            overflow-y: auto;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .scroll::-webkit-scrollbar { width: 5px; }
+        .scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+
+        .empty {
+            text-align: center;
+            padding: 80px 20px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        /* ============ 礼物卡片 容器 ============ */
+        .gift {
+            width: 500px;
+            max-width: 95vw;
+            height: 76px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px 8px 0;
+            animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 背景层 —— 单独切形状，不影响内容 */
+        .gift-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, #93c5fd 0%, #bfdbfe 40%, #dbeafe 70%, #c7d2fe 100%);
+            clip-path: url(#giftClip);
+            z-index: 0;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-16px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes mergeFlash {
+            0%   { filter: brightness(1.08); }
+            100% { filter: brightness(1); }
+        }
+        .gift.merged .gift-bg { animation: mergeFlash 0.45s ease-out; }
+
+        /* 头像 —— 完全在卡片内，覆盖左侧半圆区域 */
+        .g-av {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.95);
+            box-shadow: 0 2px 5px rgba(30, 64, 175, 0.18);
+            background: #e2e8f0;
+            z-index: 2;
+            margin-left: 0;
+            flex-shrink: 0;
+        }
+
+        /* 中间文字区 */
+        .g-mid {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            z-index: 1;
+        }
+
+        .g-userline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .g-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200px;
+        }
+
+        .medal {
+            display: inline-flex;
+            align-items: center;
+            padding: 1px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.75);
+            color: #475569;
+            flex-shrink: 0;
+        }
+        .medal.总督 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+        .medal.提督 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
+        .medal.舰长 { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+        .medal.粉丝团 { background: linear-gradient(135deg, #ec4899, #f472b6); color: #fff; }
+
+        .g-act { font-size: 14px; color: #334155; }
+        .g-act .gn { color: #1e40af; font-weight: 600; }
+        .g-act .blind { color: #b45309; font-weight: 600; }
+
+        /* 右侧 */
+        .g-right {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .g-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .g-icon img {
+            max-width: 48px;
+            max-height: 48px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.12));
+        }
+        .g-icon .emj { font-size: 28px; line-height: 1; }
+
+        .g-num {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e3a8a;
+            line-height: 1;
+            margin-left: -10px;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+        }
+        .g-num .x { font-size: 15px; font-weight: 600; color: #3b82f6; }
+
+        .g-time {
+            position: absolute;
+            right: 0;
+            bottom: 2px;
+            font-size: 11px;
+            color: #475569;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* 合并角标 */
+        .g-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            padding: 1px 6px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 8px;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body>
+    <!-- SVG clip-path：左侧半圆 + 右侧整角斜切 -->
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <clipPath id="giftClip" clipPathUnits="userSpaceOnUse">
+                <path d="
+                    M 38 0
+                    L 500 0
+                    L 424 76
+                    L 38 76
+                    A 38 38 0 0 1 38 0
+                    Z
+                " />
+            </clipPath>
+        </defs>
+    </svg>
+
+    <div class="scroll" id="scroll">
+        <div class="empty" id="empty">等待礼物中...</div>
+    </div>
+
+    <script>
+        const _parts = window.location.pathname.split('/').filter(Boolean);
+        const ROOM_ID = _parts[1] || null;
+        const PLUGIN_NAME = _parts[3] || null;
+
+        const POLL = 1000;
+        const MAX = 200;
+        const INIT = 50;
+
+        let CFG = { 合并同用户同礼物: true, 合并窗口秒数: 300, 展示范围: '全部' };
+        let lastMaxId = 0, polling = false;
+
+        const $s = document.getElementById('scroll');
+        const $e = document.getElementById('empty');
+
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        function fmtTime(ts) {
+            if (!ts) return '';
+            let n = typeof ts === 'number' ? ts : parseFloat(ts);
+            if (isNaN(n)) return '';
+            const d = new Date(n < 1e12 ? n * 1000 : n);
+            if (isNaN(d.getTime())) return '';
+            const p = x => String(x).padStart(2, '0');
+            return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        }
+
+        async function query(sql, params = []) {
+            if (!ROOM_ID) return [];
+            const r = await fetch('/api/db/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'sql=' + encodeURIComponent(sql) + '&params=' + encodeURIComponent(JSON.stringify(params)) + '&room_id=' + encodeURIComponent(ROOM_ID)
+            });
+            return r.json();
+        }
+
+        function renderRow(g) {
+            const uid = g['用户ID'] || 0;
+            const name = esc(g['用户名'] || '-');
+            const av = g['头像URL'] || '';
+            const gid = g['礼物ID'] || '';
+            const gname = esc(g['礼物名称'] || '礼物');
+            const cdn = g['礼物图片URL'] || '';
+            const cnt = g['礼物数量'] || 1;
+            const blind = g['是否盲盒'] == 1;
+            const blindN = esc(g['盲盒名称'] || '');
+            const blindP = g['盲盒盈亏'] || 0;
+            const mname = esc(g['粉丝牌名称'] || '');
+            const mlv = g['粉丝牌等级'] || '';
+            const guard = esc(g['舰长等级'] || '');
+            const ts = g['时间戳'];
+            const mn = g._mergeCount || 1;
+
+            let medal = '';
+            if (mname) {
+                let cls = 'medal';
+                if (guard === '总督') cls += ' 总督';
+                else if (guard === '提督') cls += ' 提督';
+                else if (guard === '舰长') cls += ' 舰长';
+                else if (mname.includes('粉丝团')) cls += ' 粉丝团';
+                medal = `<span class="${cls}">${mname}${mlv ? ' Lv' + mlv : ''}</span>`;
+            }
+
+            let icon;
+            if (gid) {
+                const safe = gname.replace(/[\\/:*?"<>|]/g, '_');
+                const lf = safe + gid + '.png';
+                const pUrl = cdn ? '/api/proxy/avatar?url=' + encodeURIComponent(cdn) : '';
+                const scdn = cdn.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                icon = `<img src="/gift_data/images/${encodeURIComponent(lf)}" alt="" onerror="fb(this,'${scdn}',${pUrl ? 1 : 0})">`;
+            } else {
+                icon = '<span class="emj">🎁</span>';
+            }
+
+            let action = `投喂了 <span class="gn">${gname}</span>`;
+            if (blind && blindN) {
+                action += ` <span class="blind">🎲 ${blindN}</span>`;
+                if (blindP !== 0) {
+                    const cny = blindP / 1000;
+                    const sign = cny > 0 ? '+' : '';
+                    const col = cny > 0 ? '#059669' : (cny < 0 ? '#dc2626' : '#6b7280');
+                    action += ` <span style="color:${col};font-size:12px;font-weight:600;">${sign}${cny.toFixed(2)}元</span>`;
+                }
+            }
+
+            const badge = mn > 1 ? `<div class="g-badge">${mn}次</div>` : '';
+            const avImg = av ? `<img class="g-av" src="/api/proxy/avatar?url=${encodeURIComponent(av)}" onerror="this.style.display='none'">` : '<div class="g-av" style="display:flex;align-items:center;justify-content:center;background:#e2e8f0;font-size:18px;">👤</div>';
+
+            return `
+                <div class="gift" data-id="${g.id}" data-user="${uid}" data-gift="${gname}" data-blind="${blind ? blindN : ''}" data-ts="${ts}" data-merge="${mn}">
+                    <div class="gift-bg"></div>
+                    ${badge}
+                    ${avImg}
+                    <div class="g-mid">
+                        <div class="g-userline">
+                            <span class="g-name">${name}</span>
+                            ${medal}
+                        </div>
+                        <div class="g-act">${action}</div>
+                    </div>
+                    <div class="g-right">
+                        <div class="g-icon">${icon}</div>
+                        <div class="g-num"><span class="x">×</span>${cnt}</div>
+                        <div class="g-time">${fmtTime(ts)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function fb(img, cdn, has) {
+            has = !!has;
+            if (!img.dataset.fb) {
+                img.dataset.fb = '1';
+                const m = img.src.match(/\/(\d+)\.png$/);
+                if (m && m[1] !== '0') { img.src = '/gift_data/images/' + m[1] + '.png'; return; }
+            }
+            if (has && !img.dataset.fc) {
+                img.dataset.fc = '1';
+                img.src = '/api/proxy/avatar?url=' + encodeURIComponent(cdn);
+                return;
+            }
+            const p = img.parentElement;
+            if (p) p.innerHTML = '<span class="emj">🎁</span>';
+        }
+
+        function findMerge(gift) {
+            if (!CFG.合并同用户同礼物) return null;
+            const uid = gift['用户ID'];
+            const gn = gift['礼物名称'];
+            const blind = gift['是否盲盒'] == 1;
+            const bn = blind ? (gift['盲盒名称'] || '') : '';
+            const ts = typeof gift['时间戳'] === 'number' ? gift['时间戳'] : parseFloat(gift['时间戳']);
+            const win = CFG.合并窗口秒数 || 300;
+            for (const row of $s.querySelectorAll('.gift')) {
+                if (row.dataset.user !== String(uid)) continue;
+                if (row.dataset.gift !== gn) continue;
+                if (row.dataset.blind !== bn) continue;
+                const rts = parseFloat(row.dataset.ts || 0);
+                if (rts && ts && Math.abs(ts - rts) <= win) return row;
+            }
+            return null;
+        }
+
+        function mergeInto(row, gift) {
+            const newCnt = gift['礼物数量'] || 1;
+            const mn = parseInt(row.dataset.merge || '1') + 1;
+            const cntEl = row.querySelector('.g-num');
+            const curCnt = parseInt(cntEl.textContent.replace(/[×]/g, '')) || 1;
+            row.dataset.merge = mn;
+            row.dataset.ts = gift['时间戳'];
+            cntEl.innerHTML = `<span class="x">×</span>${curCnt + newCnt - 1}`;
+            row.querySelector('.g-time').textContent = fmtTime(gift['时间戳']);
+            let badge = row.querySelector('.g-badge');
+            if (mn > 1) {
+                if (!badge) { badge = document.createElement('div'); badge.className = 'g-badge'; row.appendChild(badge); }
+                badge.textContent = mn + '次';
+            } else if (badge) badge.remove();
+            row.classList.remove('merged');
+            void row.offsetWidth;
+            row.classList.add('merged');
+        }
+
+        function add(gifts) {
+            if (!gifts.length) return;
+            if ($e) $e.style.display = 'none';
+            for (const g of gifts) {
+                const t = findMerge(g);
+                if (t) mergeInto(t, g);
+                else $s.insertAdjacentHTML('afterbegin', renderRow(g));
+            }
+            const rows = $s.querySelectorAll('.gift');
+            while (rows.length > MAX) rows[rows.length - 1].remove();
+        }
+
+        function rangeTs() {
+            const d = new Date();
+            if (CFG.展示范围 === '当天') { d.setHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+            if (CFG.展示范围 === '当月') { d.setDate(1); d.setHours(0,0,0,0); return Math.floor(d.getTime()/1000); }
+            return null;
+        }
+
+        async function poll() {
+            if (polling) return;
+            polling = true;
+            try {
+                const rs = rangeTs();
+                let sql, params;
+                if (rs) { sql = 'SELECT * FROM gift WHERE id > ? AND "时间戳" >= ? ORDER BY id ASC LIMIT 50'; params = [lastMaxId, rs]; }
+                else    { sql = 'SELECT * FROM gift WHERE id > ? ORDER BY id ASC LIMIT 50'; params = [lastMaxId]; }
+                const data = await query(sql, params);
+                if (data && data.length) {
+                    const nm = Math.max(...data.map(g => g.id || 0));
+                    if (nm > lastMaxId) lastMaxId = nm;
+                    add(data);
+                }
+            } catch(e) { console.error(e); }
+            finally { polling = false; }
+        }
+
+        async function init() {
+            try {
+                const rs = rangeTs();
+                let sql, params;
+                if (rs) { sql = 'SELECT * FROM gift WHERE "时间戳" >= ? ORDER BY id DESC LIMIT ?'; params = [rs, INIT]; }
+                else    { sql = 'SELECT * FROM gift ORDER BY id DESC LIMIT ?'; params = [INIT]; }
+                let data = await query(sql, params);
+                if (data && data.length) {
+                    data.reverse();
+                    if (CFG.合并同用户同礼物) {
+                        let m = [];
+                        for (const g of data) {
+                            if (m.length) {
+                                const last = m[m.length-1];
+                                if (last['用户ID']===g['用户ID'] && last['礼物名称']===g['礼物名称'] &&
+                                    (last['是否盲盒']==1?(last['盲盒名称']||''):'') === (g['是否盲盒']==1?(g['盲盒名称']||''):'')) {
+                                    const t1 = typeof last['时间戳']==='number'?last['时间戳']:parseFloat(last['时间戳']);
+                                    const t2 = typeof g['时间戳']==='number'?g['时间戳']:parseFloat(g['时间戳']);
+                                    if (Math.abs(t2-t1) <= (CFG.合并窗口秒数||300)) {
+                                        last['礼物数量']=(last['礼物数量']||1)+(g['礼物数量']||1);
+                                        last['_mergeCount']=(last['_mergeCount']||1)+1;
+                                        continue;
+                                    }
+                                }
+                            }
+                            g._mergeCount=1; m.push(g);
+                        }
+                        data=m;
+                    } else data.forEach(g => g._mergeCount = 1);
+                    lastMaxId = Math.max(...data.map(g => g.id || 0));
+                    $e.style.display='none';
+                    $s.innerHTML = data.map(renderRow).join('');
+                }
+            } catch(e) { console.error(e); }
+            setInterval(poll, POLL); poll();
+        }
+
+        async function loadCfg() {
+            if (!ROOM_ID) return;
+            try {
+                const r = await fetch(`/rooms/${ROOM_ID}/plugins`);
+                const data = await r.json();
+                if (data.success && data.data) {
+                    const p = (data.data.installed || data.data || []).find(x => x.name === PLUGIN_NAME);
+                    if (p && p.config) {
+                        const c = p.config;
+                        if (typeof c['合并同用户同礼物']==='boolean') CFG.合并同用户同礼物 = c['合并同用户同礼物'];
+                        if (typeof c['合并窗口秒数']==='number') CFG.合并窗口秒数 = c['合并窗口秒数'];
+                        if (c['展示范围']) CFG.展示范围 = c['展示范围'];
+                    }
+                }
+            } catch(e) {}
+        }
+
+        if (!ROOM_ID) $e.textContent='错误: 缺少房间ID';
+        else loadCfg().then(init);
+    </script>
+</body>
+</html>

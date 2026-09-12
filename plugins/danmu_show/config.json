@@ -1,0 +1,11 @@
+{
+    "name": "弹幕显示",
+    "version": "1.0.18",
+    "description": "滚动显示直播间各种消息",
+    "automatic": false,
+    "enabled": false,
+    "弹幕": true,
+    "互动": false,
+    "礼物": true,
+    "舰长": false
+}

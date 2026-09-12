@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雀你一拳</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, #fff4d6 0%, #ffe8b8 50%, #ffd89b 100%);
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ============ 主容器 ============ */
+  .app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* ============ 右上角图标 ============ */
+  .top-right {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    display: flex;
+    gap: 12px;
+  }
+  .icon-btn {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.15s;
+    border: none;
+  }
+  .icon-btn:hover { transform: scale(1.08); background: rgba(255,255,255,0.8); }
+
+  /* ============ 标题 ============ */
+  .title {
+    text-align: center;
+    margin-top: 10px;
+  }
+  .title h1 {
+    font-size: 44px;
+    font-weight: 800;
+    color: #d4863a;
+    letter-spacing: 4px;
+    text-shadow: 0 2px 4px rgba(212,134,58,0.15);
+  }
+  .title p {
+    font-size: 14px;
+    color: #b8865e;
+    margin-top: 2px;
+    letter-spacing: 2px;
+  }
+
+  /* ============ 角色区 ============ */
+  .character {
+    margin-top: 20px;
+    width: 220px;
+    height: 220px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 6px 24px rgba(180,130,60,0.2), 0 2px 6px rgba(0,0,0,0.08);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.08s ease-out;
+  }
+  .character img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+  }
+  .character.hit { animation: hitShake 0.35s ease-out; }
+  @keyframes hitShake {
+    0%   { transform: translate(0, 0) rotate(0); }
+    12%  { transform: translate(-14px, 3px) rotate(-5deg); }
+    28%  { transform: translate(12px, -2px) rotate(4deg); }
+    44%  { transform: translate(-8px, 2px) rotate(-3deg); }
+    60%  { transform: translate(5px, -1px) rotate(2deg); }
+    80%  { transform: translate(-2px, 1px) rotate(-0.5deg); }
+    100% { transform: translate(0, 0) rotate(0); }
+  }
+  .character.punched { animation: punchFlash 0.5s ease-out; }
+  @keyframes punchFlash {
+    0%   { filter: brightness(1); }
+    30%  { filter: brightness(1.6) saturate(1.4); transform: scale(1.05); }
+    100% { filter: brightness(1); transform: scale(1); }
+  }
+
+  /* ============ 数字 ============ */
+  .big-num {
+    font-size: 96px;
+    font-weight: 900;
+    color: #5a3a1a;
+    line-height: 1;
+    margin-top: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+  .big-num.pulse { animation: numPulse 0.2s ease-out; }
+  @keyframes numPulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.15); color: #ff6b35; }
+    100% { transform: scale(1); color: #5a3a1a; }
+  }
+
+  .label-today {
+    font-size: 15px;
+    color: #a07040;
+    margin-top: 4px;
+  }
+
+  .sub-stats {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    color: #b8865e;
+    margin-top: 4px;
+  }
+  .sub-stats span b {
+    color: #8b5a2b;
+    font-weight: 600;
+  }
+
+  /* ============ 底部卡片 ============ */
+  .bottom-card {
+    margin-top: auto;
+    margin-bottom: 20px;
+    width: 360px;
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(8px);
+    border-radius: 22px;
+    padding: 18px 20px;
+    box-shadow: 0 4px 20px rgba(180,130,60,0.15);
+  }
+  .card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-row:last-child { margin-bottom: 0; }
+  .row-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #6b4820;
+    font-weight: 500;
+  }
+  .row-icon { font-size: 16px; }
+
+  /* 开关 */
+  .switch {
+    width: 44px; height: 24px;
+    background: #e0d0b8;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .switch.on { background: #ff9c4a; }
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: white;
+    border-radius: 50%;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .switch.on::after { left: 23px; }
+
+  /* 速度档 */
+  .speed-group {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .speed-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 12px;
+    background: #f0e5d0;
+    color: #a07040;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .speed-btn:hover { background: #e5d5b5; }
+  .speed-btn.active {
+    background: #ff9c4a;
+    color: white;
+    box-shadow: 0 2px 8px rgba(255,156,74,0.4);
+  }
+
+  /* 清零 */
+  .reset-btn {
+    padding: 6px 16px;
+    border: none;
+    border-radius: 12px;
+    background: #f0e5d0;
+    color: #a07040;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { background: #e5d5b5; }
+
+  .tip {
+    text-align: center;
+    font-size: 12px;
+    color: #c8a878;
+    font-style: italic;
+  }
+
+  /* ============ 飞字 ============ */
+  .pop-text {
+    position: fixed;
+    font-size: 24px;
+    font-weight: 800;
+    color: #ff6b35;
+    text-shadow: 0 1px 3px rgba(255,107,53,0.3);
+    pointer-events: none;
+    z-index: 20;
+    animation: popFly 0.9s ease-out forwards;
+  }
+  .pop-text.big { font-size: 44px; color: #e84010; }
+  @keyframes popFly {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    25%  { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+    50%  { transform: translate(-50%, -100%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -250%) scale(0.9); }
+  }
+
+  /* ============ 一拳大动画 ============ */
+  .punch-fx {
+    position: fixed;
+    pointer-events: none;
+    z-index: 25;
+    animation: punchRing 0.5s ease-out forwards;
+  }
+  @keyframes punchRing {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+    30%  { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.7); }
+  }
+
+  /* ============ 通关 ============ */
+  .clear-overlay {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(255,200,80,0.4) 0%, rgba(255,150,50,0.2) 40%, transparent 70%);
+    pointer-events: none;
+    z-index: 15;
+    animation: clearPulse 1.5s ease-out forwards;
+  }
+  @keyframes clearPulse {
+    0%   { opacity: 0; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ============ 状态点 ============ */
+  .status-dot {
+    position: absolute;
+    top: 14px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #b8865e;
+    z-index: 5;
+  }
+  .status-dot::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: #ccc;
+    border-radius: 50%;
+  }
+  .status-dot.live { color: #e85d2a; }
+  .status-dot.live::before {
+    background: #ff6b35;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- 状态 -->
+  <div class="status-dot" id="statusDot">等待礼物中</div>
+
+  <!-- 右上角图标 -->
+  <div class="top-right">
+    <button class="icon-btn" id="muteBtn" title="音效">🔊</button>
+  </div>
+
+  <!-- 标题 -->
+  <div class="title">
+    <h1>雀你一拳</h1>
+    <p id="subtitle">—— 敲十下，挨一拳 ——</p>
+  </div>
+
+  <!-- 角色 -->
+  <div class="character" id="character">
+    <img src="assets/shuque.png" alt="雀">
+  </div>
+
+  <!-- 数字 -->
+  <div class="big-num" id="bigNum">0</div>
+  <div class="label-today">今日敲击</div>
+  <div class="sub-stats">
+    <span>连点 <b id="cpsNow">0</b></span>
+    <span>峰值 <b id="cpsMax">0</b>/秒</span>
+    <span>用时 <b id="elapsed">0</b> 秒</span>
+  </div>
+
+  <!-- 底部卡片 -->
+  <div class="bottom-card">
+    <!-- 自动点击 & 速度档 & 清零 & 手动点击已屏蔽 -->
+    <div class="tip" id="tipText">这速度……在养生？</div>
+  </div>
+</div>
+
+<script>
+const _parts = window.location.pathname.split('/').filter(Boolean);
+const ROOM_ID = _parts[1] || null;
+const PLUGIN_NAME = _parts[3] || null;
+
+// -------- 配置 --------
+let CONFIG = {
+  triggerKeyword: '人气票',
+  punchEvery: 10,    // 每 10 次触发一拳
+  clearEvery: 100    // 每 100 次通关
+};
+
+// -------- 状态 --------
+let totalPunch = 0;
+let sessionStart = Date.now();
+let cpsSamples = [];
+let cpsMax = 0;
+let punchedToday = false;
+
+// -------- DOM --------
+const $char = document.getElementById('character');
+const $num = document.getElementById('bigNum');
+const $subtitle = document.getElementById('subtitle');
+const $cpsNow = document.getElementById('cpsNow');
+const $cpsMax = document.getElementById('cpsMax');
+const $elapsed = document.getElementById('elapsed');
+const $status = document.getElementById('statusDot');
+const $tip = document.getElementById('tipText');
+
+// -------- 音效（预加载 + 单实例复用，零网络请求） --------
+let muted = false;
+const sfxPool = {};
+const SFX_NAMES = ['meow', 'punch', 'clear'];
+
+// 页面加载时一次性预加载所有音效
+SFX_NAMES.forEach(name => {
+  const a = new Audio(`assets/sfx/${name}.wav`);
+  a.preload = 'auto';
+  sfxPool[name] = a;
+});
+
+let currentAudio = null;
+function playSfx(name) {
+  if (muted) return;
+  try {
+    // 停掉上一个正在响的
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    const a = sfxPool[name];
+    if (!a) return;
+    a.volume = 0.7;
+    a.currentTime = 0;
+    a.play().catch(()=>{});
+    currentAudio = a;
+  } catch (e) {}
+}
+
+// -------- 加载配置 --------
+async function loadConfig() {
+  if (!ROOM_ID) return;
+  try {
+    const resp = await fetch(`/rooms/${ROOM_ID}/plugins`);
+    const data = await resp.json();
+    if (data.success && data.data) {
+      const pluginData = data.data.find(p => p.name === PLUGIN_NAME);
+      if (pluginData) {
+        const c = pluginData.config || {};
+        if (c['触发礼物关键词']) CONFIG.triggerKeyword = c['触发礼物关键词'];
+        if (typeof c.punch_every === 'number') CONFIG.punchEvery = c.punch_every;
+        if (typeof c.clear_every === 'number') CONFIG.clearEvery = c.clear_every;
+      }
+    }
+  } catch (e) {}
+  updateSubtitle();
+}
+
+function updateSubtitle() {
+  $subtitle.textContent = `—— 敲${CONFIG.punchEvery}下，挨一拳 ——`;
+}
+
+function updateTip() {
+  const elapsed = (Date.now() - sessionStart) / 1000;
+  if (elapsed < 30) $tip.textContent = '这速度……在养生？';
+  else if (elapsed < 120) $tip.textContent = '还行还行，继续加油~';
+  else $tip.textContent = '雀被打哭了 QAQ';
+}
+
+// -------- Punch 核心：队列串行 + 强制 200ms --------
+const _punchQueue = [];
+let _punchRunning = false;
+
+function _enqueuePunch(count) {
+  _punchQueue.push(count);
+  if (!_punchRunning) _flushQueue();
+}
+
+async function _flushQueue() {
+  _punchRunning = true;
+  while (_punchQueue.length > 0) {
+    const count = _punchQueue.shift();
+    for (let i = 0; i < count; i++) {
+      totalPunch++;
+      punchedToday = true;
+
+      smallHit(1);
+
+      if (totalPunch % CONFIG.punchEvery === 0) {
+        bigPunch();
+        playSfx('punch');
+      } else {
+        playSfx('meow');
+      }
+
+      if (totalPunch % CONFIG.clearEvery === 0 && totalPunch > 0) {
+        celebrate();
+      }
+
+      updateUI();
+
+      // 强制每次 +1 后等 200ms，不管有没有下一份礼物
+      if (_punchQueue.length > 0 || i < count - 1) {
+        await sleep(200);
+      }
+    }
+  }
+  _punchRunning = false;
+}
+
+function doPunch(count = 1) {
+  _enqueuePunch(count);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function smallHit(count) {
+  $char.classList.remove('hit');
+  void $char.offsetWidth;
+  $char.classList.add('hit');
+
+  $num.classList.remove('pulse');
+  void $num.offsetWidth;
+  $num.classList.add('pulse');
+
+  // 飞字
+  const rect = $char.getBoundingClientRect();
+  const txt = document.createElement('div');
+  txt.className = 'pop-text' + (count >= 10 ? ' big' : '');
+  txt.textContent = '+' + count;
+  txt.style.left = (rect.left + rect.width/2) + 'px';
+  txt.style.top = (rect.top + 20) + 'px';
+  document.body.appendChild(txt);
+  setTimeout(() => txt.remove(), 1000);
+}
+
+function bigPunch() {
+  $char.classList.remove('punched');
+  void $char.offsetWidth;
+  $char.classList.add('punched');
+  // 音效由调用方 playSfx('punch') 统一管理，这里只管动画
+
+  // 一拳冲击图
+  const rect = $char.getBoundingClientRect();
+  const fx = document.createElement('div');
+  fx.className = 'punch-fx';
+  fx.innerHTML = `
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      <polygon points="70,5 85,50 135,55 95,85 110,135 70,105 30,135 45,85 5,55 55,50"
+               fill="none" stroke="#e84010" stroke-width="5" stroke-linejoin="round"/>
+      <text x="70" y="85" font-size="36" font-weight="900" fill="#ff3000" text-anchor="middle"
+            style="font-family: sans-serif;">拳!</text>
+    </svg>`;
+  fx.style.left = (rect.left + rect.width/2) + 'px';
+  fx.style.top = (rect.top + rect.height/2) + 'px';
+  document.body.appendChild(fx);
+  setTimeout(() => fx.remove(), 550);
+}
+
+function celebrate() {
+  playSfx('clear');
+  const overlay = document.createElement('div');
+  overlay.className = 'clear-overlay';
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 1500);
+}
+
+// -------- UI --------
+function updateUI() {
+  $num.textContent = totalPunch;
+
+  // CPS
+  cpsSamples.push(1);
+  if (cpsSamples.length > 120) cpsSamples.shift();
+}
+
+setInterval(() => {
+  const now = (Date.now() - sessionStart) / 1000;
+  $elapsed.textContent = Math.floor(now);
+
+  if (cpsSamples.length >= 2) {
+    const recent = cpsSamples.slice(-30);
+    const cps = recent.reduce((a,b) => a+b, 0) / 2;
+    $cpsNow.textContent = cps.toFixed(1);
+    if (cps > cpsMax) cpsMax = cps;
+    $cpsMax.textContent = cpsMax.toFixed(1);
+  }
+
+  updateTip();
+}, 1000);
+
+// -------- SSE --------
+function connectSSE() {
+  if (!ROOM_ID) { $status.textContent = '无房间'; return; }
+  let url = `/api/events?plugin=${PLUGIN_NAME}&room_id=${ROOM_ID}`;
+  const es = new EventSource(url);
+
+  es.onmessage = function(event) {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg['消息类型'] !== '礼物') return;
+
+      const giftName = msg['礼物名称'] || '';
+      const blindName = msg['盲盒名称'] || '';
+      const isTrigger = CONFIG.triggerKeyword && (
+        giftName.includes(CONFIG.triggerKeyword) ||
+        blindName.includes(CONFIG.triggerKeyword)
+      );
+      if (!isTrigger) return;
+
+      const count = parseInt(msg['礼物数量']) || 1;
+      doPunch(count);
+
+      const user = msg['用户名'] || '';
+      $status.classList.add('live');
+      $status.textContent = `${user} ×${count}`;
+      setTimeout(() => {
+        $status.classList.remove('live');
+        $status.textContent = '等待礼物中';
+      }, 2500);
+    } catch (e) {}
+  };
+
+  es.onerror = function() {
+    $status.textContent = '重连中...';
+    es.close();
+    setTimeout(() => connectSSE(), 3000);
+  };
+}
+
+// -------- 自动点击 / 手动点击 / 重置 均已屏蔽 --------
+
+// -------- 音效开关 --------
+document.getElementById('muteBtn').addEventListener('click', function() {
+  muted = !muted;
+  this.textContent = muted ? '🔇' : '🔊';
+});
+
+// -------- 启动 --------
+loadConfig();
+connectSSE();
+updateUI();
+</script>
+</body>
+</html>

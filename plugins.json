@@ -1,0 +1,309 @@
+{
+  "updated_at": 1789208623,
+  "plugins": [
+    {
+      "name": "blind_box_stats",
+      "display_name": "盲盒统计",
+      "version": "1.0.18",
+      "description": "查询盲盒数量与盈亏统计\n\n【查询关键词】\n- 本月盲盒: 查询本月盲盒统计\n- 上月盲盒: 查询上月盲盒统计\n\n【返回内容】\n- 盲盒数量: 盲盒礼物总个数\n- 开出价值: 盲盒开出礼物的总价值\n- 花费金额: 盲盒总花费\n- 盈亏: 开出价值-花费金额",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "f7e694453e75ebc227bdae4eedebaaa7696397e0854cc36b2308519209880555",
+          "size": 3177
+        },
+        {
+          "path": "config.json",
+          "sha256": "6f7728aeeb919e6f13dcac4416140fd2c89aaded45a949c397f23b2006c40b54",
+          "size": 539
+        }
+      ]
+    },
+    {
+      "name": "danmu_auto_reply",
+      "display_name": "弹幕自动回复",
+      "version": "1.1.17",
+      "description": "根据关键词自动回复弹幕，支持精确匹配和包含匹配两种模式",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "7aded22a96cc4d4b6a0310f092d7461badbd639bd78ba18f79f543164572d24d",
+          "size": 1334
+        },
+        {
+          "path": "config.json",
+          "sha256": "2244ba4977dcf88a6e597d316b9c12b663e7dd99526f1a5854f781dbc2ea404d",
+          "size": 574
+        }
+      ]
+    },
+    {
+      "name": "danmu_show",
+      "display_name": "弹幕显示",
+      "version": "1.0.18",
+      "description": "滚动显示直播间各种消息",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "1e0822bd64a16f526f09a0819cd22c27eebafc14239c0eb0c248cc5ac8fdcd8e",
+          "size": 222
+        },
+        {
+          "path": "config.json",
+          "sha256": "bfc4d7ae858009dff9970c87e242c396ce896fc0f08ddbf25e5541e07ed10142",
+          "size": 249
+        },
+        {
+          "path": "display.html",
+          "sha256": "722ad84784a3a19c881979c2d2a1e74c8d81f9b52cb485aa2e9d668e86ca50a0",
+          "size": 3797
+        }
+      ]
+    },
+    {
+      "name": "dynamic_push",
+      "display_name": "动态推送",
+      "version": "1.0.18",
+      "description": "监听关注UP主的B站动态，生成卡片图片推送到QQ群。\n\n【配置说明】\n- QQ群号: 推送目标群号\n- 发送文字信息: 是否发送第一条提醒文字（含下方@和提醒文字设置）\n- @全体成员: 提醒消息中是否@全体成员\n- 提醒文字: 第一条提醒消息的文字内容\n- 发送图片卡片: 是否发送第二条动态卡片图片\n- 发送动态链接: 是否发送第三条B站动态链接",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "f912812e937431a8198994494acad48adc03fb1347cdc828bd58d693d226de9e",
+          "size": 21298
+        },
+        {
+          "path": "config.json",
+          "sha256": "8d0d513e5a4f0899c2dcc3aa06062b4656d9539e2b8c11bf31d61f869bea4a82",
+          "size": 828
+        },
+        {
+          "path": "fonts/Yozai-Regular.ttf",
+          "sha256": "4174a0123d90d76b5a617a3cf02d7920edc668e7de80ada3a233c71bd6c03ecc",
+          "size": 15605374
+        }
+      ]
+    },
+    {
+      "name": "gift_show",
+      "display_name": "礼物展示",
+      "version": "1.1.22",
+      "description": "每秒查询数据库，滚动展示最新礼物记录",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "ad4f85f3339aba3502737458eb4683c09b12b26203d7d200fb1137f5e1eb1979",
+          "size": 395
+        },
+        {
+          "path": "config.json",
+          "sha256": "faf4c6125186dec8067c9992710d2264cf7d768e1f5855dc45abe22dd1f1f28f",
+          "size": 379
+        },
+        {
+          "path": "display.html",
+          "sha256": "14cce03a0f9d9a63efecaec5a3031d2f32e72293356ad6c6e1b2f898146a1074",
+          "size": 18504
+        }
+      ]
+    },
+    {
+      "name": "gift_song_request",
+      "display_name": "弹幕随机点歌",
+      "version": "1.1.7",
+      "description": "通过礼物或舰长弹幕触发随机点歌，从歌曲列表中随机选取歌曲发送弹幕。\n\n【配置参数】\n- 触发礼物列表: 礼物名称或盲盒名称匹配时触发点歌\n- 歌曲列表: 每行一首歌，支持直接在浏览器中编辑\n- 回复模板: 点歌回复模板\n- 舰长弹幕点歌开关: 开启后舰长/提督/总督发送关键词弹幕可触发点歌\n- 舰长弹幕触发词: 舰长弹幕触发点歌的关键词（默认\"随机点歌\"）\n\n【可用变量】\n{用户名} 观众昵称\n{歌曲名} 随机选中的歌曲\n{礼物名称} 触发的礼物名\n{盲盒名称} 盲盒开出的礼物名\n{舰长等级} 用户舰长身份（舰长/提督/总督）",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "db2cb26dea76618d8dc394e3543f2d0786a090cf18ca297051019da845c0a44e",
+          "size": 4304
+        },
+        {
+          "path": "config.json",
+          "sha256": "0718f888245617262d4dc012517d8ff76afc38c0da26adff84d54a6fc92ddb48",
+          "size": 2798
+        }
+      ]
+    },
+    {
+      "name": "gift_thanks",
+      "display_name": "礼物感谢",
+      "version": "1.0.19",
+      "description": "自动感谢观众礼物，支持变量替换、消息合并、盲盒单独回复。\n\n【配置参数】\n- 合并窗口秒: 同一用户相同礼物在此时间内合并数量，超时后回复（默认3秒，0=不合并）\n- 普通感谢列表: 普通礼物的回复模板列表，随机选取一条\n- 盲盒感谢列表: 盲盒礼物的回复模板列表，随机选取一条\n\n【可用变量】\n通用: {用户名} {用户ID} {礼物名称} {礼物数量} {礼物单价} {总价值} {时间戳}\n盲盒: {是否盲盒} {盲盒名称} {盲盒花费} {盲盒价值} {盲盒盈亏}\n身份: {粉丝牌名称} {粉丝牌等级} {舰长等级}\n\n【金额变量说明】(默认CNY格式,÷1000保留两位小数)\n- 总价值: 普通礼物总价值\n- 盲盒花费: 用户实际花费\n- 盲盒价值: 开出礼物价值(单价×数量)\n- 盲盒盈亏: 盲盒价值-盲盒花费(正=赚,负=亏)",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "d64e3a4ef84b09f710de1d1d433bc3672580f6502a82dbeb3575d8b278eda8d7",
+          "size": 8754
+        },
+        {
+          "path": "config.json",
+          "sha256": "cecf9520a7496959caba20057e15ef1ed1943053961a68591d905499e67f81fd",
+          "size": 1435
+        }
+      ]
+    },
+    {
+      "name": "history_query",
+      "display_name": "历史查询",
+      "version": "1.0.19",
+      "description": "查询历史弹幕、礼物等消息记录",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "c445b0a36112b652297a1701447b1bf79a166addf383acc185bc51c9495cad9e",
+          "size": 381
+        },
+        {
+          "path": "config.json",
+          "sha256": "86ad1473c14cdf0a8f9b42bac0da1620090c7ae38b27f5559ff41376137d2d7d",
+          "size": 172
+        },
+        {
+          "path": "display.html",
+          "sha256": "a1057b7133f9ba36cfdce5b37bd0df12741202227adecab7ff71edc19ea63af8",
+          "size": 48542
+        }
+      ]
+    },
+    {
+      "name": "live_status_notice",
+      "display_name": "开播下播通知",
+      "version": "1.3.7",
+      "description": "在直播间开播/下播/切轮播时自动发送弹幕通知，同时调用 NapCat 向 QQ 群发送消息。\n\n支持模板变量：{live_time}（直播时长，仅下播）、{uname}（主播名）、{room_id}（房间号）、{title}（直播标题）。在开播/下播弹幕、开播/下播群文字中使用即可自动替换。",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "cc86dc747f3f809e8f1961117170e621da7368e37b9b8ddb18a968a4fa38e11d",
+          "size": 25098
+        },
+        {
+          "path": "config.json",
+          "sha256": "dc9841693a860cb21424c2db0c6aef15256cb80d7b6d97f49640df37d0275774",
+          "size": 1330
+        },
+        {
+          "path": "fonts/Yozai-Regular.ttf",
+          "sha256": "4174a0123d90d76b5a617a3cf02d7920edc668e7de80ada3a233c71bd6c03ecc",
+          "size": 15605374
+        }
+      ]
+    },
+    {
+      "name": "lottery",
+      "display_name": "抽签插件",
+      "version": "1.0.22",
+      "description": "弹幕抽签功能，展示窗口最佳260x450",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "f5978c2984ad2f63c2e59a61846cd2c4775e2b7a6778503c53475900922d3bbd",
+          "size": 3765
+        },
+        {
+          "path": "config.json",
+          "sha256": "1bebe77755a3c35d8c5b5d464f50a5f1c62c9107ec97834f510ff7635c99f9ab",
+          "size": 1561
+        },
+        {
+          "path": "display.html",
+          "sha256": "2e441fff769973fe3d89bdc665bfa8fbe01e99df46a15bba50c3319714dec941",
+          "size": 16559
+        }
+      ]
+    },
+    {
+      "name": "punch",
+      "display_name": "雀你一拳",
+      "version": "1.0.6",
+      "description": "收到人气票就代替点击一下，累计 punch 次数。\n\n【配置参数】\n- 触发礼物关键词: 礼物名称包含该关键词就算一次 punch（默认「人气票」）\n- 感谢模板: 触发后发送的弹幕内容，留空不发。支持变量 {用户名} {礼物名称} {礼物数量} {当前Punch}",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "f14c6a18d669106104c9375c08d82412334e609539bcecc9ffe65ac29c7a4b91",
+          "size": 227
+        },
+        {
+          "path": "assets/sfx/clear.wav",
+          "sha256": "d499f5c7300d3c691fd3833ea45b9b7fb2086652e0317f1b07a6ec596e927793",
+          "size": 146876
+        },
+        {
+          "path": "assets/sfx/meow.wav",
+          "sha256": "126405d9db58802e9eb30a4be64062b111c86e4abbb87488c7074b35280874b2",
+          "size": 26980
+        },
+        {
+          "path": "assets/sfx/meow_lazy.wav",
+          "sha256": "a6737484329c8c6f76c74b1d4935bbb0ab870b2e617dc7f90093c2e64b1573cc",
+          "size": 101048
+        },
+        {
+          "path": "assets/sfx/meow_q.wav",
+          "sha256": "0e16bce110d8b6e932edcc495f1ba107a692b511a96fd393b22f48d0c21f3bc2",
+          "size": 21370
+        },
+        {
+          "path": "assets/sfx/punch.wav",
+          "sha256": "7072b799649aac3e3dc87f587915e9b01da62fedcf1fc8f124339c365091a6b5",
+          "size": 54600
+        },
+        {
+          "path": "assets/sfx/wow.wav",
+          "sha256": "05644000740694ee09b83e1baadb7f8a69566d059b5dc604d699a57a0fc3bbb0",
+          "size": 214018
+        },
+        {
+          "path": "assets/shuque.png",
+          "sha256": "91030b7e084426d01532015f9d27b991a3e1c2180cf7b95740df9769e3eced49",
+          "size": 423159
+        },
+        {
+          "path": "config.json",
+          "sha256": "d694ebdddeb06f112474a07f10ee32258ba13cee946fcf501f197399276204e3",
+          "size": 616
+        },
+        {
+          "path": "display.html",
+          "sha256": "a6a98d6bc4061605ced0047eb13fcab9f3507cabe5230c5c20156eca08641aa6",
+          "size": 16049
+        }
+      ]
+    },
+    {
+      "name": "tie_tie_stats",
+      "display_name": "贴贴统计",
+      "version": "1.1.23",
+      "description": "关键词弹幕统计（DB 实时查询版），支持弹幕查询个人次数和排行榜，支持跨场次累计",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "2e2ccc481aac8950129394fdd99b1f7155488e3f4bedfaea4776ce7e84452819",
+          "size": 4868
+        },
+        {
+          "path": "config.json",
+          "sha256": "d3cf685a54425bed5606792e5b1a2945c43127d32093c28b9b4050059d1fe4d3",
+          "size": 537
+        }
+      ]
+    },
+    {
+      "name": "timed_scheduler",
+      "display_name": "定时任务",
+      "version": "1.0.18",
+      "description": "从随机列表抽取内容定时发送弹幕，支持时间间隔和发言间隔双重条件",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "7ae78f602184ef4a11b19cb741239b8803573c84356d5be0783ea61315530f55",
+          "size": 3046
+        },
+        {
+          "path": "config.json",
+          "sha256": "5f506cb03ec039a503639387b227a1f80663cb5e6184355e4a4d15adf9261020",
+          "size": 437
+        }
+      ]
+    }
+  ]
+}
