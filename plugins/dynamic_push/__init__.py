@@ -31,36 +31,10 @@ def draw_dynamic_card(msg: dict) -> bytes:
     if not os.path.exists(font_path):
         font_path = None
 
-    fallback_font_paths = []
-    for fp in [
-        r'C:\Windows\Fonts\msyh.ttc',
-        r'C:\Windows\Fonts\simsun.ttc',
-        r'C:\Windows\Fonts\segoeuisl.ttf',
-        r'C:\Windows\Fonts\seguiemj.ttf',
-    ]:
-        if os.path.exists(fp):
-            fallback_font_paths.append(fp)
-
     def font(size):
         if font_path:
             return ImageFont.truetype(font_path, size)
         return ImageFont.load_default()
-
-    def fallback_font(size):
-        for fp in fallback_font_paths:
-            try:
-                return ImageFont.truetype(fp, size)
-            except Exception:
-                continue
-        return font(size)
-
-    def char_in_font(f, ch):
-        """检测主字体是否支持该字符：getbbox 返回有效宽度就算支持"""
-        try:
-            bbox = f.getbbox(ch)
-            return bbox is not None and bbox[2] > bbox[0]
-        except Exception:
-            return False
 
     def wrap_text(draw_obj, text, fnt, max_width):
         if not text:
@@ -83,7 +57,6 @@ def draw_dynamic_card(msg: dict) -> bytes:
     def draw_text_with_emoji(draw_obj, img_obj, text, fnt, emoji_map, x, y, max_width, line_height):
         segments = re.split(r'(\[[^\]]+\]|@\S+)', text)
         emoji_size = fnt.size
-        fb_font = fallback_font(fnt.size)
         cur_x = x
         cur_y = y
         emoji_cache = {}
@@ -92,19 +65,17 @@ def draw_dynamic_card(msg: dict) -> bytes:
                 continue
             if seg.startswith('@'):
                 for ch in seg:
-                    use_font = fnt if char_in_font(fnt, ch) else fb_font
-                    bbox = draw_obj.textbbox((0, 0), ch, font=use_font)
+                    bbox = draw_obj.textbbox((0, 0), ch, font=fnt)
                     w = bbox[2] - bbox[0]
                     if cur_x + w > x + max_width and cur_x > x:
                         cur_x = x
                         cur_y += line_height
-                    draw_obj.text((cur_x, cur_y), ch, fill='#00AEEC', font=use_font)
+                    draw_obj.text((cur_x, cur_y), ch, fill='#00AEEC', font=fnt)
                     cur_x += w
             elif seg.startswith('[') and seg.endswith(']') and seg in emoji_map:
                 if seg not in emoji_cache:
                     em = _download_image(emoji_map[seg])
                     if em:
-                        # 统一转 RGBA，确保透明度通道正确（B 站表情可能是 P 模式或无 alpha 的 RGB）
                         em = em.convert('RGBA')
                         em = em.resize((emoji_size, emoji_size), Image.LANCZOS)
                     emoji_cache[seg] = em
@@ -116,13 +87,12 @@ def draw_dynamic_card(msg: dict) -> bytes:
                     img_obj.paste(em, (cur_x, cur_y + (line_height - emoji_size) // 2), em)
                     cur_x += emoji_size
                 else:
-                    use_font = fnt if char_in_font(fnt, seg) else fb_font
-                    bbox = draw_obj.textbbox((0, 0), seg, font=use_font)
+                    bbox = draw_obj.textbbox((0, 0), seg, font=fnt)
                     w = bbox[2] - bbox[0]
                     if cur_x + w > x + max_width:
                         cur_x = x
                         cur_y += line_height
-                    draw_obj.text((cur_x, cur_y), seg, fill='#18191C', font=use_font)
+                    draw_obj.text((cur_x, cur_y), seg, fill='#18191C', font=fnt)
                     cur_x += w
             else:
                 for ch in seg:
@@ -130,28 +100,25 @@ def draw_dynamic_card(msg: dict) -> bytes:
                         cur_x = x
                         cur_y += line_height
                         continue
-                    use_font = fnt if char_in_font(fnt, ch) else fb_font
-                    bbox = draw_obj.textbbox((0, 0), ch, font=use_font)
+                    bbox = draw_obj.textbbox((0, 0), ch, font=fnt)
                     w = bbox[2] - bbox[0]
                     if cur_x + w > x + max_width and cur_x > x:
                         cur_x = x
                         cur_y += line_height
-                    draw_obj.text((cur_x, cur_y), ch, fill='#18191C', font=use_font)
+                    draw_obj.text((cur_x, cur_y), ch, fill='#18191C', font=fnt)
                     cur_x += w
         return cur_y + line_height
 
-    def draw_line_fallback(draw_obj, img_obj, text, fnt, fb_fnt, color, x, y, max_width, line_height):
-        """逐字符绘制单行文字，主字体缺字时自动回退到 fallback 字体。
-        返回绘制结束后的 y（含该行的 line_height），供下一行使用。"""
+    def draw_line(draw_obj, text, fnt, color, x, y, max_width, line_height):
+        """逐字符绘制单行文字，返回绘制结束后的 y（含该行 line_height）。"""
         cur_x = x
         for ch in text:
-            use_font = fnt if char_in_font(fnt, ch) else fb_fnt
-            bbox = draw_obj.textbbox((0, 0), ch, font=use_font)
+            bbox = draw_obj.textbbox((0, 0), ch, font=fnt)
             w = bbox[2] - bbox[0]
             if cur_x + w > x + max_width and cur_x > x:
                 cur_x = x
                 y += line_height
-            draw_obj.text((cur_x, y), ch, fill=color, font=use_font)
+            draw_obj.text((cur_x, y), ch, fill=color, font=fnt)
             cur_x += w
         return y + line_height
 
@@ -198,9 +165,7 @@ def draw_dynamic_card(msg: dict) -> bytes:
     def s(v): return int(v * SCALE)
 
     name_font = font(s(24))
-    name_fb_font = fallback_font(s(24))
     meta_font = font(s(18))
-    meta_fb_font = fallback_font(s(18))
     body_font = font(s(24))
     mini_font = font(s(16))
 
@@ -318,18 +283,15 @@ def draw_dynamic_card(msg: dict) -> bytes:
 
     name_x = MARGIN + avatar_size + s(12)
     name_max_w = W - MARGIN - name_x
-    draw_line_fallback(draw, img, name, name_font, name_fb_font, '#18191C', name_x, y + s(4), name_max_w, s(30))
+    draw_line(draw, name, name_font, '#18191C', name_x, y + s(4), name_max_w, s(30))
     meta = f'{pub_time_display} · {action_text}'
-    draw_line_fallback(draw, img, meta, meta_font, meta_fb_font, '#9499A0', name_x, y + s(34), name_max_w, s(24))
+    draw_line(draw, meta, meta_font, '#9499A0', name_x, y + s(34), name_max_w, s(24))
     y += header_h
 
     if dyn_title:
         title_font_draw = font(s(26))
-        title_fb_font_draw = fallback_font(s(26))
         for line in title_lines:
-            # 偏移画两次模拟加粗，颜色用深黑（不用蓝色）
-            draw_line_fallback(draw, img, line, title_font_draw, title_fb_font_draw, '#18191C', MARGIN + 1, y + 1, content_width, 0)
-            y = draw_line_fallback(draw, img, line, title_font_draw, title_fb_font_draw, '#18191C', MARGIN, y, content_width, s(34))
+            y = draw_line(draw, line, title_font_draw, '#00AEEC', MARGIN, y, content_width, s(34))
         y += s(2)
 
     if text_content:
@@ -362,9 +324,7 @@ def draw_dynamic_card(msg: dict) -> bytes:
             text_x = card_bg_x + s(14)
             text_area_w = card_bg_w - s(28)
         title_font_card = font(s(24))
-        title_fb_font_card = fallback_font(s(24))
         desc_font_card = font(s(16))
-        desc_fb_font_card = fallback_font(s(16))
         title_all = wrap_text(temp_draw, video_title, title_font_card, text_area_w)
         title_line_count = 1 if len(title_all) <= 1 else 2
         title_lines = title_all[:title_line_count]
@@ -375,13 +335,11 @@ def draw_dynamic_card(msg: dict) -> bytes:
             desc_lines[-1] = desc_lines[-1][:-1] + '…'
         cy = y + s(4)
         for line in title_lines:
-            # 偏移画两次模拟加粗，颜色用深黑
-            draw_line_fallback(draw, img, line, title_font_card, title_fb_font_card, '#18191C', text_x + 1, cy + 1, text_area_w, 0)
-            cy = draw_line_fallback(draw, img, line, title_font_card, title_fb_font_card, '#18191C', text_x, cy, text_area_w, s(32))
+            cy = draw_line(draw, line, title_font_card, '#00AEEC', text_x, cy, text_area_w, s(32))
         if desc_lines:
             cy += s(6)
         for line in desc_lines:
-            cy = draw_line_fallback(draw, img, line, desc_font_card, desc_fb_font_card, '#61666D', text_x, cy, text_area_w, s(22))
+            cy = draw_line(draw, line, desc_font_card, '#61666D', text_x, cy, text_area_w, s(22))
         y += card_h + s(16)
 
     elif card_type in ('single', 'multi'):
