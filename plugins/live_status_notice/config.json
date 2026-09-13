@@ -1,6 +1,6 @@
 {
     "name": "开播下播通知",
-    "version": "1.3.7",
+    "version": "1.3.8",
     "description": "在直播间开播/下播/切轮播时自动发送弹幕通知，同时调用 NapCat 向 QQ 群发送消息。\n\n支持模板变量：{live_time}（直播时长，仅下播）、{uname}（主播名）、{room_id}（房间号）、{title}（直播标题）。在开播/下播弹幕、开播/下播群文字中使用即可自动替换。",
     "automatic": false,
     "enabled": false,
