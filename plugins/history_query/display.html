@@ -492,6 +492,13 @@
             <div class="toolbar">
                 <input type="text" class="search-input" id="giftKeyword" placeholder="礼物/盲盒名称" data-debounce="gift" data-debounce-delay="500">
                 <input type="text" class="search-input" id="giftUser" placeholder="用户名" style="width:140px;" data-debounce="gift" data-debounce-delay="500">
+                <select class="time-input" id="giftBlindBox" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
+                    <option value="all">全部礼物</option>
+                    <option value="blind">仅盲盒</option>
+                    <option value="non_blind">仅非盲盒</option>
+                    <option value="blind_loss">盈亏为负</option>
+                </select>
+                <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" style="width:120px;" data-debounce="gift" data-debounce-delay="500">
                 <select class="time-input" id="giftRange" onchange="onRangeChange('gift')" style="width:auto;cursor:pointer;">
                     <option value="all">全部时间</option>
                     <option value="today">今天</option>
@@ -516,20 +523,7 @@
                     <option value="value_desc">金额最高</option>
                     <option value="value_asc">金额最低</option>
                 </select>
-                <button class="filter-toggle" onclick="toggleFilterMore('gift')"><span class="arrow">▶</span> 更多筛选</button>
                 <button class="btn btn-secondary" onclick="resetGift()">重置</button>
-                <!-- 折叠区：次要筛选 -->
-                <div class="filter-more" id="giftMore">
-                    <label>盲盒:</label>
-                    <select id="giftBlindBox" onchange="loadGifts(true)" style="cursor:pointer;">
-                        <option value="all">全部礼物</option>
-                        <option value="blind">仅盲盒</option>
-                        <option value="non_blind">仅非盲盒</option>
-                        <option value="blind_loss">盈亏为负</option>
-                    </select>
-                    <label>最小花费:</label>
-                    <input type="number" class="value-input" id="giftMinValue" placeholder="CNY" style="width:100px;" data-debounce="gift" data-debounce-delay="500">
-                </div>
             </div>
             <div class="summary-bar" id="giftSummaryBar">
                 <div class="summary-item">
@@ -1432,14 +1426,6 @@
             }
         }
 
-        // 更多筛选折叠 toggle
-        function toggleFilterMore(tabKey) {
-            const btn = document.querySelector(`#${tabKey} .filter-toggle`);
-            const panel = document.getElementById(tabKey + 'More');
-            const isOpen = panel.classList.toggle('open');
-            btn.classList.toggle('open', isOpen);
-        }
-
         // 通用 reset（礼物 tab 单独处理，因为控件多）
         function resetTab(tabKey) {
             const rangeSel = document.getElementById(tabKey + 'Range');
@@ -1468,11 +1454,6 @@
             document.getElementById('giftCustomTime').classList.remove('open');
             document.getElementById('giftStart').value = '';
             document.getElementById('giftEnd').value = '';
-            // 关闭更多筛选面板
-            const morePanel = document.getElementById('giftMore');
-            const toggleBtn = document.querySelector('#gift .filter-toggle');
-            if (morePanel) morePanel.classList.remove('open');
-            if (toggleBtn) toggleBtn.classList.remove('open');
             loadGifts(true);
         }
 
