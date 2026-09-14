@@ -150,6 +150,19 @@
             color: var(--text-secondary);
             white-space: nowrap;
         }
+        .quick-btn {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .quick-btn:hover { border-color: var(--primary); color: var(--primary); background: white; }
+        .quick-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         /* 礼物汇总条 */
         .summary-bar {
@@ -412,11 +425,16 @@
         <!-- 弹幕 -->
         <div id="danmu" class="tab-content active">
             <div class="toolbar">
-                <input type="text" class="search-input" id="danmuKeyword" placeholder="搜索弹幕内容... (Enter 搜索)" onkeydown="if(event.key==='Enter') loadDanmu()">
+                <input type="text" class="search-input" id="danmuKeyword" placeholder="搜索弹幕内容..." data-debounce="danmu" data-debounce-delay="500">
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="danmuStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="danmuEnd">
-                <button class="btn btn-primary" onclick="loadDanmu()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('danmuKeyword').value='';document.getElementById('danmuStart').value='';document.getElementById('danmuEnd').value=''; loadDanmu()">重置</button>
+                <button class="quick-btn" onclick="setQuickRange('danmu','today')">今天</button>
+                <button class="quick-btn" onclick="setQuickRange('danmu','7d')">近7天</button>
+                <button class="quick-btn" onclick="setQuickRange('danmu','30d')">近30天</button>
+                <button class="quick-btn" onclick="setQuickRange('danmu','month')">本月</button>
+                <button class="quick-btn" onclick="setQuickRange('danmu','year')">本年</button>
+                <button class="quick-btn" onclick="clearRange('danmu')">清空</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('danmuKeyword').value='';document.getElementById('danmuStart').value='';document.getElementById('danmuEnd').value=''; loadDanmu(true)">重置</button>
             </div>
             <div class="table-scroll" id="danmuWrapper">
                 <table id="danmuTable">
@@ -429,11 +447,23 @@
         <!-- 礼物 -->
         <div id="gift" class="tab-content">
             <div class="toolbar">
-                <input type="text" class="search-input" id="giftKeyword" placeholder="搜索礼物名称/盲盒... (Enter 搜索)" onkeydown="if(event.key==='Enter') loadGifts()">
-                <input type="text" class="search-input" id="giftUser" placeholder="搜索用户名..." style="width:180px;" onkeydown="if(event.key==='Enter') loadGifts()">
-                <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" onkeydown="if(event.key==='Enter') loadGifts()">
+                <input type="text" class="search-input" id="giftKeyword" placeholder="搜索礼物名称/盲盒..." data-debounce="gift" data-debounce-delay="500">
+                <input type="text" class="search-input" id="giftUser" placeholder="搜索用户名..." style="width:180px;" data-debounce="gift" data-debounce-delay="500">
+                <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" data-debounce="gift" data-debounce-delay="500">
+                <select class="time-input" id="giftBlindBox" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
+                    <option value="all">全部礼物</option>
+                    <option value="blind">仅盲盒</option>
+                    <option value="non_blind">仅非盲盒</option>
+                    <option value="blind_loss">盲盒盈亏为负</option>
+                </select>
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="giftStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="giftEnd">
+                <button class="quick-btn" onclick="setQuickRange('gift','today')">今天</button>
+                <button class="quick-btn" onclick="setQuickRange('gift','7d')">近7天</button>
+                <button class="quick-btn" onclick="setQuickRange('gift','30d')">近30天</button>
+                <button class="quick-btn" onclick="setQuickRange('gift','month')">本月</button>
+                <button class="quick-btn" onclick="setQuickRange('gift','year')">本年</button>
+                <button class="quick-btn" onclick="clearRange('gift')">清空</button>
                 <select class="time-input" id="giftMergeLevel" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
                     <option value="none">不合并</option>
                     <option value="gift">按礼物合并</option>
@@ -445,8 +475,7 @@
                     <option value="value_desc">金额最高</option>
                     <option value="value_asc">金额最低</option>
                 </select>
-                <button class="btn btn-primary" onclick="loadGifts()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftUser').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value='';document.getElementById('giftMergeLevel').value='none';document.getElementById('giftSort').value='time_desc'; loadGifts()">重置</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftUser').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftBlindBox').value='all';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value='';document.getElementById('giftMergeLevel').value='none';document.getElementById('giftSort').value='time_desc'; loadGifts(true)">重置</button>
             </div>
             <div class="summary-bar" id="giftSummaryBar">
                 <div class="summary-item">
@@ -477,8 +506,13 @@
             <div class="toolbar">
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="interactStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="interactEnd">
-                <button class="btn btn-primary" onclick="loadInteract()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('interactStart').value='';document.getElementById('interactEnd').value=''; loadInteract()">重置</button>
+                <button class="quick-btn" onclick="setQuickRange('interact','today')">今天</button>
+                <button class="quick-btn" onclick="setQuickRange('interact','7d')">近7天</button>
+                <button class="quick-btn" onclick="setQuickRange('interact','30d')">近30天</button>
+                <button class="quick-btn" onclick="setQuickRange('interact','month')">本月</button>
+                <button class="quick-btn" onclick="setQuickRange('interact','year')">本年</button>
+                <button class="quick-btn" onclick="clearRange('interact')">清空</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('interactStart').value='';document.getElementById('interactEnd').value=''; loadInteract(true)">重置</button>
             </div>
             <div class="table-scroll" id="interactWrapper">
                 <table id="interactTable">
@@ -493,8 +527,13 @@
             <div class="toolbar">
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="guardStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="guardEnd">
-                <button class="btn btn-primary" onclick="loadGuard()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('guardStart').value='';document.getElementById('guardEnd').value=''; loadGuard()">重置</button>
+                <button class="quick-btn" onclick="setQuickRange('guard','today')">今天</button>
+                <button class="quick-btn" onclick="setQuickRange('guard','7d')">近7天</button>
+                <button class="quick-btn" onclick="setQuickRange('guard','30d')">近30天</button>
+                <button class="quick-btn" onclick="setQuickRange('guard','month')">本月</button>
+                <button class="quick-btn" onclick="setQuickRange('guard','year')">本年</button>
+                <button class="quick-btn" onclick="clearRange('guard')">清空</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('guardStart').value='';document.getElementById('guardEnd').value=''; loadGuard(true)">重置</button>
             </div>
             <div class="table-scroll" id="guardWrapper">
                 <table id="guardTable">
@@ -509,8 +548,13 @@
             <div class="toolbar">
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="scStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="scEnd">
-                <button class="btn btn-primary" onclick="loadSC()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('scStart').value='';document.getElementById('scEnd').value=''; loadSC()">重置</button>
+                <button class="quick-btn" onclick="setQuickRange('super_chat','today')">今天</button>
+                <button class="quick-btn" onclick="setQuickRange('super_chat','7d')">近7天</button>
+                <button class="quick-btn" onclick="setQuickRange('super_chat','30d')">近30天</button>
+                <button class="quick-btn" onclick="setQuickRange('super_chat','month')">本月</button>
+                <button class="quick-btn" onclick="setQuickRange('super_chat','year')">本年</button>
+                <button class="quick-btn" onclick="clearRange('super_chat')">清空</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('scStart').value='';document.getElementById('scEnd').value=''; loadSC(true)">重置</button>
             </div>
             <div class="table-scroll" id="scWrapper">
                 <table id="scTable">
@@ -733,6 +777,7 @@
             const minCoin = Math.round(minVal * 1000);
             const keyword = document.getElementById('giftKeyword').value.trim();
             const userKeyword = document.getElementById('giftUser').value.trim();
+            const blindBox = document.getElementById('giftBlindBox').value; // all / blind / non_blind / blind_loss
             const mergeLevel = document.getElementById('giftMergeLevel').value; // none / gift / user
             const sortKey = document.getElementById('giftSort').value;
 
@@ -750,6 +795,14 @@
             if (minCoin > 0) {
                 conditions.push('总价值 >= ?');
                 params.push(minCoin);
+            }
+            // 盲盒筛选
+            if (blindBox === 'blind') {
+                conditions.push('是否盲盒 = 1');
+            } else if (blindBox === 'non_blind') {
+                conditions.push('是否盲盒 = 0');
+            } else if (blindBox === 'blind_loss') {
+                conditions.push('是否盲盒 = 1 AND 盲盒盈亏 < 0');
             }
             let whereSql = conditions.join(' AND ');
             whereSql = appendTimeRange(whereSql, params, 'giftStart', 'giftEnd');
@@ -1255,6 +1308,98 @@
                 fb.style.display = 'flex';
             }
         }
+
+        // ---------- 防抖 + 时间快捷 ----------
+        // 防抖：按 debounceGroup 分组，同组共用一个 timer
+        const debounceTimers = {};
+        const TAB_LOADERS_NAME = { danmu: 'loadDanmu', gift: 'loadGifts', interact: 'loadInteract', guard: 'loadGuard', super_chat: 'loadSC' };
+
+        function debounce(groupName, delayMs, fn) {
+            if (debounceTimers[groupName]) clearTimeout(debounceTimers[groupName]);
+            debounceTimers[groupName] = setTimeout(fn, delayMs);
+        }
+
+        // 格式化 datetime-local 值（本地时间，YYYY-MM-DDTHH:mm）
+        function toLocalInputValue(d) {
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        // 时间快捷设置
+        function setQuickRange(tabKey, preset) {
+            const now = new Date();
+            let start = new Date(now), end = new Date(now);
+
+            switch (preset) {
+                case 'today':
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 0);
+                    break;
+                case '7d':
+                    start.setDate(now.getDate() - 6);
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 0);
+                    break;
+                case '30d':
+                    start.setDate(now.getDate() - 29);
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 0);
+                    break;
+                case 'month':
+                    start.setDate(1);
+                    start.setHours(0, 0, 0, 0);
+                    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                    end.setDate(lastDay);
+                    end.setHours(23, 59, 59, 0);
+                    break;
+                case 'year':
+                    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+                    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+                    break;
+            }
+
+            document.getElementById(tabKey + 'Start').value = toLocalInputValue(start);
+            document.getElementById(tabKey + 'End').value = toLocalInputValue(end);
+
+            // 高亮该组按钮
+            const container = document.getElementById(tabKey).querySelector('.toolbar');
+            container.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+            const btn = [...container.querySelectorAll('.quick-btn')].find(b => b.getAttribute('onclick')?.includes(`'${preset}'`));
+            if (btn) btn.classList.add('active');
+
+            // 触发对应 tab 加载
+            const loaderName = TAB_LOADERS_NAME[tabKey];
+            if (typeof window[loaderName] === 'function') {
+                window[loaderName](true);
+            }
+        }
+
+        // 清空时间范围
+        function clearRange(tabKey) {
+            document.getElementById(tabKey + 'Start').value = '';
+            document.getElementById(tabKey + 'End').value = '';
+            const container = document.getElementById(tabKey).querySelector('.toolbar');
+            container.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+            const loaderName = TAB_LOADERS_NAME[tabKey];
+            if (typeof window[loaderName] === 'function') {
+                window[loaderName](true);
+            }
+        }
+
+        // 页面加载后：给所有带 data-debounce 的 input 绑定 input 事件
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('[data-debounce]').forEach(el => {
+                const group = el.dataset.debounce;
+                const delay = parseInt(el.dataset.debounceDelay || '500');
+                const loaderName = TAB_LOADERS_NAME[group];
+                if (!loaderName || typeof window[loaderName] !== 'function') return;
+                el.addEventListener('input', () => {
+                    debounce(group, delay, () => {
+                        window[loaderName](true);
+                    });
+                });
+            });
+        });
 
         // ---------- 初始化 ----------
         // 为每个tab绑定滚动监听

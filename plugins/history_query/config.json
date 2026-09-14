@@ -1,6 +1,6 @@
 {
     "name": "历史查询",
-    "version": "1.0.22",
+    "version": "1.0.23",
     "automatic": false,
     "enabled": false,
     "description": "查询历史弹幕、礼物等消息记录"
