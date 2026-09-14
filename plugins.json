@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789352072,
+  "updated_at": 1789353199,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -145,7 +145,7 @@
     {
       "name": "history_query",
       "display_name": "历史查询",
-      "version": "1.0.19",
+      "version": "1.0.20",
       "description": "查询历史弹幕、礼物等消息记录",
       "files": [
         {
@@ -155,13 +155,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "86ad1473c14cdf0a8f9b42bac0da1620090c7ae38b27f5559ff41376137d2d7d",
+          "sha256": "e8838a6f89a218de733bff9292522f3f3ab9201a58c4eb4b0a22ece831397728",
           "size": 172
         },
         {
           "path": "display.html",
-          "sha256": "a1057b7133f9ba36cfdce5b37bd0df12741202227adecab7ff71edc19ea63af8",
-          "size": 48542
+          "sha256": "68c65a5becb9e46e5b5f5e422b3c3263f01943b8c974829fbacef52a7996a04b",
+          "size": 50720
         }
       ]
     },
