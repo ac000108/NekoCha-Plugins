@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789420397,
+  "updated_at": 1789420478,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -208,64 +208,6 @@
           "path": "display.html",
           "sha256": "2e441fff769973fe3d89bdc665bfa8fbe01e99df46a15bba50c3319714dec941",
           "size": 16559
-        }
-      ]
-    },
-    {
-      "name": "punch",
-      "display_name": "雀你一拳",
-      "version": "1.0.6",
-      "description": "收到人气票就代替点击一下，累计 punch 次数。\n\n【配置参数】\n- 触发礼物关键词: 礼物名称包含该关键词就算一次 punch（默认「人气票」）\n- 感谢模板: 触发后发送的弹幕内容，留空不发。支持变量 {用户名} {礼物名称} {礼物数量} {当前Punch}",
-      "files": [
-        {
-          "path": "__init__.py",
-          "sha256": "f14c6a18d669106104c9375c08d82412334e609539bcecc9ffe65ac29c7a4b91",
-          "size": 227
-        },
-        {
-          "path": "assets/sfx/clear.wav",
-          "sha256": "d499f5c7300d3c691fd3833ea45b9b7fb2086652e0317f1b07a6ec596e927793",
-          "size": 146876
-        },
-        {
-          "path": "assets/sfx/meow.wav",
-          "sha256": "126405d9db58802e9eb30a4be64062b111c86e4abbb87488c7074b35280874b2",
-          "size": 26980
-        },
-        {
-          "path": "assets/sfx/meow_lazy.wav",
-          "sha256": "a6737484329c8c6f76c74b1d4935bbb0ab870b2e617dc7f90093c2e64b1573cc",
-          "size": 101048
-        },
-        {
-          "path": "assets/sfx/meow_q.wav",
-          "sha256": "0e16bce110d8b6e932edcc495f1ba107a692b511a96fd393b22f48d0c21f3bc2",
-          "size": 21370
-        },
-        {
-          "path": "assets/sfx/punch.wav",
-          "sha256": "7072b799649aac3e3dc87f587915e9b01da62fedcf1fc8f124339c365091a6b5",
-          "size": 54600
-        },
-        {
-          "path": "assets/sfx/wow.wav",
-          "sha256": "05644000740694ee09b83e1baadb7f8a69566d059b5dc604d699a57a0fc3bbb0",
-          "size": 214018
-        },
-        {
-          "path": "assets/shuque.png",
-          "sha256": "91030b7e084426d01532015f9d27b991a3e1c2180cf7b95740df9769e3eced49",
-          "size": 423159
-        },
-        {
-          "path": "config.json",
-          "sha256": "d694ebdddeb06f112474a07f10ee32258ba13cee946fcf501f197399276204e3",
-          "size": 616
-        },
-        {
-          "path": "display.html",
-          "sha256": "a6a98d6bc4061605ced0047eb13fcab9f3507cabe5230c5c20156eca08641aa6",
-          "size": 16049
         }
       ]
     },
