@@ -1,4 +1,4 @@
-"""
+﻿"""
 开播下播通知插件 - 在直播状态切换时自动发送弹幕通知，并可选调用 NapCat 发送 QQ 群消息/图片卡片
 
 触发时机：
@@ -415,7 +415,7 @@ class LiveStatusNoticePlugin(BasePlugin):
                     self._last_status = status
                     # 中途开启/插件 reload 时主播已在播：API 能拿到 live_time 就存上
                     if status == 1:
-                        self._live_start_ts = info.get('live_start_ts')
+                        self._live_start_ts = info.get('live_start_ts') or None
             except Exception:
                 # API 调用失败也没关系，会在 process_message 里兜底
                 pass
@@ -431,28 +431,30 @@ class LiveStatusNoticePlugin(BasePlugin):
 
         with self._lock:
             if self._last_status is None:
+                # API 也查失败的兜底：第一次收到状态只建基线，不触发
                 self._last_status = status
+                if status == 1:
+                    self._live_start_ts = message.get('live_time') or None
                 return
             if status == self._last_status:
                 return
             self._last_status = status
-            self._live_start_ts = None
-
-        # API 拉房间信息，同时补开播时间（room_info 里有 live_start_ts）
-        try:
-            room_info = _fetch_room_info(str(self._room_id)) if self._room_id else None
-        except Exception:
-            room_info = None
-
-        if status == 1 and room_info:
-            ts = room_info.get('live_start_ts')
-            if ts:
-                self._live_start_ts = float(ts)
 
         if status == 1:
+            self._live_start_ts = message.get('live_time') or None
+            try:
+                room_info = _fetch_room_info(str(self._room_id)) if self._room_id else None
+            except Exception:
+                room_info = None
             self._on_live_start(room_info)
         elif status in (0, 2):
-            self._on_live_end(self._calc_duration(message), room_info)
+            duration_sec = self._calc_duration(message)
+            self._live_start_ts = None
+            try:
+                room_info = _fetch_room_info(str(self._room_id)) if self._room_id else None
+            except Exception:
+                room_info = None
+            self._on_live_end(duration_sec, room_info)
 
     # ==================== NapCat 消息发送 ====================
 
@@ -508,7 +510,7 @@ class LiveStatusNoticePlugin(BasePlugin):
         else:
             print(f"[{self.name}] QQ群 发送失败: {result}")
 
-    def _send_qq_image_card(self, is_live: bool, duration_text: str = None, room_info: dict = None):
+    def _send_qq_image_card(self, is_live: bool, duration_text: str = None):
         """发送 QQ 群图片卡片"""
         if not self._config.get('启用QQ群通知', False):
             return
@@ -518,9 +520,8 @@ class LiveStatusNoticePlugin(BasePlugin):
             print(f"[{self.name}] 无可用房间ID，跳过卡片生成")
             return
 
-        # 优先用传入的 room_info（避免重复 API），没有才自己拉
-        if room_info is None:
-            room_info = _fetch_room_info(room_id)
+        # 拉取房间信息
+        room_info = _fetch_room_info(room_id)
 
         # 生成卡片图片
         try:
@@ -545,9 +546,15 @@ class LiveStatusNoticePlugin(BasePlugin):
     # ==================== 开播/下播触发 ====================
 
     def _calc_duration(self, preparing_message: dict) -> int | None:
-        """算直播时长。"""
+        """算直播时长。优先用内存里存的 LIVE 消息 live_time，API 兜底为辅。"""
         start_ts = self._live_start_ts
-        if start_ts is None:
+        if not start_ts and self._room_id:
+            try:
+                info = _fetch_room_info(self._room_id)
+                start_ts = info.get('live_start_ts')
+            except Exception:
+                pass
+        if not start_ts:
             return None
         send_time_ms = preparing_message.get('send_time', 0) or 0
         end_ts = send_time_ms / 1000 if send_time_ms else None
@@ -607,7 +614,7 @@ class LiveStatusNoticePlugin(BasePlugin):
             if send_image and text:
                 import time; time.sleep(2)
             if send_image:
-                self._send_qq_image_card(is_live=True, room_info=room_info)
+                self._send_qq_image_card(is_live=True)
 
     def _on_live_end(self, duration_sec: int | None = None, room_info: dict = None):
         duration_text = self._format_duration(duration_sec) if duration_sec is not None else None
@@ -639,7 +646,7 @@ class LiveStatusNoticePlugin(BasePlugin):
             if send_image and text:
                 import time; time.sleep(2)
             if send_image:
-                self._send_qq_image_card(is_live=False, duration_text=duration_text, room_info=room_info)
+                self._send_qq_image_card(is_live=False, duration_text=duration_text)
 
 
 

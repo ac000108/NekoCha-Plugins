@@ -414,7 +414,6 @@
                 else    { sql = 'SELECT * FROM gift ORDER BY id DESC LIMIT ?'; params = [INIT]; }
                 let data = await query(sql, params);
                 if (data && data.length) {
-                    data.reverse();
                     if (CFG.合并同用户同礼物) {
                         let m = [];
                         for (const g of data) {
