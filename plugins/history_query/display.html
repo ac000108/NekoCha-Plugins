@@ -164,6 +164,44 @@
         .quick-btn:hover { border-color: var(--primary); color: var(--primary); background: white; }
         .quick-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
+        /* 更多筛选折叠 */
+        .filter-toggle {
+            padding: 6px 10px;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .filter-toggle:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-toggle.open { border-color: var(--primary); color: var(--primary); border-style: solid; }
+        .filter-toggle .arrow { display: inline-block; transition: transform 0.2s; }
+        .filter-toggle.open .arrow { transform: rotate(90deg); }
+
+        .filter-more {
+            display: none;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 0;
+            border-top: 1px solid var(--border);
+            width: 100%;
+            flex-wrap: wrap;
+        }
+        .filter-more.open { display: flex; }
+        .filter-more label { font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+
+        /* 自定义时间展开区 */
+        .custom-time {
+            display: none;
+            align-items: center;
+            gap: 4px;
+        }
+        .custom-time.open { display: flex; }
+        .custom-time .time-label { font-size: 12px; }
+
         /* 礼物汇总条 */
         .summary-bar {
             display: flex;
@@ -426,15 +464,20 @@
         <div id="danmu" class="tab-content active">
             <div class="toolbar">
                 <input type="text" class="search-input" id="danmuKeyword" placeholder="搜索弹幕内容..." data-debounce="danmu" data-debounce-delay="500">
-                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="danmuStart">
-                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="danmuEnd">
-                <button class="quick-btn" onclick="setQuickRange('danmu','today')">今天</button>
-                <button class="quick-btn" onclick="setQuickRange('danmu','7d')">近7天</button>
-                <button class="quick-btn" onclick="setQuickRange('danmu','30d')">近30天</button>
-                <button class="quick-btn" onclick="setQuickRange('danmu','month')">本月</button>
-                <button class="quick-btn" onclick="setQuickRange('danmu','year')">本年</button>
-                <button class="quick-btn" onclick="clearRange('danmu')">清空</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('danmuKeyword').value='';document.getElementById('danmuStart').value='';document.getElementById('danmuEnd').value=''; loadDanmu(true)">重置</button>
+                <select class="time-input" id="danmuRange" onchange="onRangeChange('danmu')" style="width:auto;cursor:pointer;">
+                    <option value="all">全部时间</option>
+                    <option value="today">今天</option>
+                    <option value="7d">近7天</option>
+                    <option value="30d">近30天</option>
+                    <option value="month">本月</option>
+                    <option value="year">本年</option>
+                    <option value="custom">自定义...</option>
+                </select>
+                <button class="btn btn-secondary" onclick="resetTab('danmu')">重置</button>
+                <div class="custom-time" id="danmuCustomTime">
+                    <span class="time-label">从</span><input type="datetime-local" class="time-input" id="danmuStart" onchange="loadDanmu(true)">
+                    <span class="time-label">到</span><input type="datetime-local" class="time-input" id="danmuEnd" onchange="loadDanmu(true)">
+                </div>
             </div>
             <div class="table-scroll" id="danmuWrapper">
                 <table id="danmuTable">
@@ -447,23 +490,21 @@
         <!-- 礼物 -->
         <div id="gift" class="tab-content">
             <div class="toolbar">
-                <input type="text" class="search-input" id="giftKeyword" placeholder="搜索礼物名称/盲盒..." data-debounce="gift" data-debounce-delay="500">
-                <input type="text" class="search-input" id="giftUser" placeholder="搜索用户名..." style="width:180px;" data-debounce="gift" data-debounce-delay="500">
-                <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" data-debounce="gift" data-debounce-delay="500">
-                <select class="time-input" id="giftBlindBox" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
-                    <option value="all">全部礼物</option>
-                    <option value="blind">仅盲盒</option>
-                    <option value="non_blind">仅非盲盒</option>
-                    <option value="blind_loss">盲盒盈亏为负</option>
+                <input type="text" class="search-input" id="giftKeyword" placeholder="礼物/盲盒名称" data-debounce="gift" data-debounce-delay="500">
+                <input type="text" class="search-input" id="giftUser" placeholder="用户名" style="width:140px;" data-debounce="gift" data-debounce-delay="500">
+                <select class="time-input" id="giftRange" onchange="onRangeChange('gift')" style="width:auto;cursor:pointer;">
+                    <option value="all">全部时间</option>
+                    <option value="today">今天</option>
+                    <option value="7d">近7天</option>
+                    <option value="30d">近30天</option>
+                    <option value="month">本月</option>
+                    <option value="year">本年</option>
+                    <option value="custom">自定义...</option>
                 </select>
-                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="giftStart">
-                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="giftEnd">
-                <button class="quick-btn" onclick="setQuickRange('gift','today')">今天</button>
-                <button class="quick-btn" onclick="setQuickRange('gift','7d')">近7天</button>
-                <button class="quick-btn" onclick="setQuickRange('gift','30d')">近30天</button>
-                <button class="quick-btn" onclick="setQuickRange('gift','month')">本月</button>
-                <button class="quick-btn" onclick="setQuickRange('gift','year')">本年</button>
-                <button class="quick-btn" onclick="clearRange('gift')">清空</button>
+                <div class="custom-time" id="giftCustomTime">
+                    <span class="time-label">从</span><input type="datetime-local" class="time-input" id="giftStart" onchange="loadGifts(true)">
+                    <span class="time-label">到</span><input type="datetime-local" class="time-input" id="giftEnd" onchange="loadGifts(true)">
+                </div>
                 <select class="time-input" id="giftMergeLevel" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
                     <option value="none">不合并</option>
                     <option value="gift">按礼物合并</option>
@@ -475,7 +516,20 @@
                     <option value="value_desc">金额最高</option>
                     <option value="value_asc">金额最低</option>
                 </select>
-                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftUser').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftBlindBox').value='all';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value='';document.getElementById('giftMergeLevel').value='none';document.getElementById('giftSort').value='time_desc'; loadGifts(true)">重置</button>
+                <button class="filter-toggle" onclick="toggleFilterMore('gift')"><span class="arrow">▶</span> 更多筛选</button>
+                <button class="btn btn-secondary" onclick="resetGift()">重置</button>
+                <!-- 折叠区：次要筛选 -->
+                <div class="filter-more" id="giftMore">
+                    <label>盲盒:</label>
+                    <select id="giftBlindBox" onchange="loadGifts(true)" style="cursor:pointer;">
+                        <option value="all">全部礼物</option>
+                        <option value="blind">仅盲盒</option>
+                        <option value="non_blind">仅非盲盒</option>
+                        <option value="blind_loss">盈亏为负</option>
+                    </select>
+                    <label>最小花费:</label>
+                    <input type="number" class="value-input" id="giftMinValue" placeholder="CNY" style="width:100px;" data-debounce="gift" data-debounce-delay="500">
+                </div>
             </div>
             <div class="summary-bar" id="giftSummaryBar">
                 <div class="summary-item">
@@ -504,15 +558,20 @@
         <!-- 互动 -->
         <div id="interact" class="tab-content">
             <div class="toolbar">
-                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="interactStart">
-                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="interactEnd">
-                <button class="quick-btn" onclick="setQuickRange('interact','today')">今天</button>
-                <button class="quick-btn" onclick="setQuickRange('interact','7d')">近7天</button>
-                <button class="quick-btn" onclick="setQuickRange('interact','30d')">近30天</button>
-                <button class="quick-btn" onclick="setQuickRange('interact','month')">本月</button>
-                <button class="quick-btn" onclick="setQuickRange('interact','year')">本年</button>
-                <button class="quick-btn" onclick="clearRange('interact')">清空</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('interactStart').value='';document.getElementById('interactEnd').value=''; loadInteract(true)">重置</button>
+                <select class="time-input" id="interactRange" onchange="onRangeChange('interact')" style="width:auto;cursor:pointer;">
+                    <option value="all">全部时间</option>
+                    <option value="today">今天</option>
+                    <option value="7d">近7天</option>
+                    <option value="30d">近30天</option>
+                    <option value="month">本月</option>
+                    <option value="year">本年</option>
+                    <option value="custom">自定义...</option>
+                </select>
+                <div class="custom-time" id="interactCustomTime">
+                    <span class="time-label">从</span><input type="datetime-local" class="time-input" id="interactStart" onchange="loadInteract(true)">
+                    <span class="time-label">到</span><input type="datetime-local" class="time-input" id="interactEnd" onchange="loadInteract(true)">
+                </div>
+                <button class="btn btn-secondary" onclick="resetTab('interact')">重置</button>
             </div>
             <div class="table-scroll" id="interactWrapper">
                 <table id="interactTable">
@@ -525,15 +584,20 @@
         <!-- 舰长 -->
         <div id="guard" class="tab-content">
             <div class="toolbar">
-                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="guardStart">
-                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="guardEnd">
-                <button class="quick-btn" onclick="setQuickRange('guard','today')">今天</button>
-                <button class="quick-btn" onclick="setQuickRange('guard','7d')">近7天</button>
-                <button class="quick-btn" onclick="setQuickRange('guard','30d')">近30天</button>
-                <button class="quick-btn" onclick="setQuickRange('guard','month')">本月</button>
-                <button class="quick-btn" onclick="setQuickRange('guard','year')">本年</button>
-                <button class="quick-btn" onclick="clearRange('guard')">清空</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('guardStart').value='';document.getElementById('guardEnd').value=''; loadGuard(true)">重置</button>
+                <select class="time-input" id="guardRange" onchange="onRangeChange('guard')" style="width:auto;cursor:pointer;">
+                    <option value="all">全部时间</option>
+                    <option value="today">今天</option>
+                    <option value="7d">近7天</option>
+                    <option value="30d">近30天</option>
+                    <option value="month">本月</option>
+                    <option value="year">本年</option>
+                    <option value="custom">自定义...</option>
+                </select>
+                <div class="custom-time" id="guardCustomTime">
+                    <span class="time-label">从</span><input type="datetime-local" class="time-input" id="guardStart" onchange="loadGuard(true)">
+                    <span class="time-label">到</span><input type="datetime-local" class="time-input" id="guardEnd" onchange="loadGuard(true)">
+                </div>
+                <button class="btn btn-secondary" onclick="resetTab('guard')">重置</button>
             </div>
             <div class="table-scroll" id="guardWrapper">
                 <table id="guardTable">
@@ -546,15 +610,20 @@
         <!-- 醒目留言 -->
         <div id="super_chat" class="tab-content">
             <div class="toolbar">
-                <span class="time-label">从</span><input type="datetime-local" class="time-input" id="scStart">
-                <span class="time-label">到</span><input type="datetime-local" class="time-input" id="scEnd">
-                <button class="quick-btn" onclick="setQuickRange('super_chat','today')">今天</button>
-                <button class="quick-btn" onclick="setQuickRange('super_chat','7d')">近7天</button>
-                <button class="quick-btn" onclick="setQuickRange('super_chat','30d')">近30天</button>
-                <button class="quick-btn" onclick="setQuickRange('super_chat','month')">本月</button>
-                <button class="quick-btn" onclick="setQuickRange('super_chat','year')">本年</button>
-                <button class="quick-btn" onclick="clearRange('super_chat')">清空</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('scStart').value='';document.getElementById('scEnd').value=''; loadSC(true)">重置</button>
+                <select class="time-input" id="super_chatRange" onchange="onRangeChange('super_chat')" style="width:auto;cursor:pointer;">
+                    <option value="all">全部时间</option>
+                    <option value="today">今天</option>
+                    <option value="7d">近7天</option>
+                    <option value="30d">近30天</option>
+                    <option value="month">本月</option>
+                    <option value="year">本年</option>
+                    <option value="custom">自定义...</option>
+                </select>
+                <div class="custom-time" id="super_chatCustomTime">
+                    <span class="time-label">从</span><input type="datetime-local" class="time-input" id="scStart" onchange="loadSC(true)">
+                    <span class="time-label">到</span><input type="datetime-local" class="time-input" id="scEnd" onchange="loadSC(true)">
+                </div>
+                <button class="btn btn-secondary" onclick="resetTab('super_chat')">重置</button>
             </div>
             <div class="table-scroll" id="scWrapper">
                 <table id="scTable">
@@ -1309,8 +1378,7 @@
             }
         }
 
-        // ---------- 防抖 + 时间快捷 ----------
-        // 防抖：按 debounceGroup 分组，同组共用一个 timer
+        // ---------- 防抖 + 时间快捷 + 折叠 ----------
         const debounceTimers = {};
         const TAB_LOADERS_NAME = { danmu: 'loadDanmu', gift: 'loadGifts', interact: 'loadInteract', guard: 'loadGuard', super_chat: 'loadSC' };
 
@@ -1319,71 +1387,93 @@
             debounceTimers[groupName] = setTimeout(fn, delayMs);
         }
 
-        // 格式化 datetime-local 值（本地时间，YYYY-MM-DDTHH:mm）
         function toLocalInputValue(d) {
             const pad = n => String(n).padStart(2, '0');
             return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
         }
 
-        // 时间快捷设置
-        function setQuickRange(tabKey, preset) {
-            const now = new Date();
-            let start = new Date(now), end = new Date(now);
+        // 时间下拉 change —— 自动填起止值或展开自定义
+        function onRangeChange(tabKey) {
+            const rangeSel = document.getElementById(tabKey + 'Range');
+            const customDiv = document.getElementById(tabKey + 'CustomTime');
+            const preset = rangeSel.value;
 
-            switch (preset) {
-                case 'today':
-                    start.setHours(0, 0, 0, 0);
-                    end.setHours(23, 59, 59, 0);
-                    break;
-                case '7d':
-                    start.setDate(now.getDate() - 6);
-                    start.setHours(0, 0, 0, 0);
-                    end.setHours(23, 59, 59, 0);
-                    break;
-                case '30d':
-                    start.setDate(now.getDate() - 29);
-                    start.setHours(0, 0, 0, 0);
-                    end.setHours(23, 59, 59, 0);
-                    break;
-                case 'month':
-                    start.setDate(1);
-                    start.setHours(0, 0, 0, 0);
-                    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-                    end.setDate(lastDay);
-                    end.setHours(23, 59, 59, 0);
-                    break;
-                case 'year':
-                    start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-                    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
-                    break;
-            }
-
-            document.getElementById(tabKey + 'Start').value = toLocalInputValue(start);
-            document.getElementById(tabKey + 'End').value = toLocalInputValue(end);
-
-            // 高亮该组按钮
-            const container = document.getElementById(tabKey).querySelector('.toolbar');
-            container.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
-            const btn = [...container.querySelectorAll('.quick-btn')].find(b => b.getAttribute('onclick')?.includes(`'${preset}'`));
-            if (btn) btn.classList.add('active');
-
-            // 触发对应 tab 加载
-            const loaderName = TAB_LOADERS_NAME[tabKey];
-            if (typeof window[loaderName] === 'function') {
-                window[loaderName](true);
+            if (preset === 'custom') {
+                customDiv.classList.add('open');
+            } else {
+                customDiv.classList.remove('open');
+                if (preset !== 'all') {
+                    // 自动填入预设时间
+                    const now = new Date();
+                    let start = new Date(now), end = new Date(now);
+                    switch (preset) {
+                        case 'today':
+                            start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 0); break;
+                        case '7d':
+                            start.setDate(now.getDate() - 6); start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 0); break;
+                        case '30d':
+                            start.setDate(now.getDate() - 29); start.setHours(0, 0, 0, 0); end.setHours(23, 59, 59, 0); break;
+                        case 'month':
+                            start.setDate(1); start.setHours(0, 0, 0, 0);
+                            end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); break;
+                        case 'year':
+                            start = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
+                            end = new Date(now.getFullYear(), 11, 31, 23, 59, 59); break;
+                    }
+                    document.getElementById(tabKey + 'Start').value = toLocalInputValue(start);
+                    document.getElementById(tabKey + 'End').value = toLocalInputValue(end);
+                } else {
+                    // all —— 清空起止
+                    document.getElementById(tabKey + 'Start').value = '';
+                    document.getElementById(tabKey + 'End').value = '';
+                }
+                const loaderName = TAB_LOADERS_NAME[tabKey];
+                if (typeof window[loaderName] === 'function') window[loaderName](true);
             }
         }
 
-        // 清空时间范围
-        function clearRange(tabKey) {
-            document.getElementById(tabKey + 'Start').value = '';
-            document.getElementById(tabKey + 'End').value = '';
-            const container = document.getElementById(tabKey).querySelector('.toolbar');
-            container.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
+        // 更多筛选折叠 toggle
+        function toggleFilterMore(tabKey) {
+            const btn = document.querySelector(`#${tabKey} .filter-toggle`);
+            const panel = document.getElementById(tabKey + 'More');
+            const isOpen = panel.classList.toggle('open');
+            btn.classList.toggle('open', isOpen);
+        }
+
+        // 通用 reset（礼物 tab 单独处理，因为控件多）
+        function resetTab(tabKey) {
+            const rangeSel = document.getElementById(tabKey + 'Range');
+            if (rangeSel) rangeSel.value = 'all';
+            const customDiv = document.getElementById(tabKey + 'CustomTime');
+            if (customDiv) customDiv.classList.remove('open');
+            const startEl = document.getElementById(tabKey + 'Start');
+            const endEl = document.getElementById(tabKey + 'End');
+            if (startEl) startEl.value = '';
+            if (endEl) endEl.value = '';
+            const kwEl = document.getElementById(tabKey + 'Keyword');
+            if (kwEl) kwEl.value = '';
             const loaderName = TAB_LOADERS_NAME[tabKey];
-            if (typeof window[loaderName] === 'function') {
-                window[loaderName](true);
-            }
+            if (typeof window[loaderName] === 'function') window[loaderName](true);
+        }
+
+        function resetGift() {
+            document.getElementById('giftKeyword').value = '';
+            document.getElementById('giftUser').value = '';
+            document.getElementById('giftMinValue').value = '';
+            document.getElementById('giftBlindBox').value = 'all';
+            document.getElementById('giftMergeLevel').value = 'none';
+            document.getElementById('giftSort').value = 'time_desc';
+            const rangeSel = document.getElementById('giftRange');
+            rangeSel.value = 'all';
+            document.getElementById('giftCustomTime').classList.remove('open');
+            document.getElementById('giftStart').value = '';
+            document.getElementById('giftEnd').value = '';
+            // 关闭更多筛选面板
+            const morePanel = document.getElementById('giftMore');
+            const toggleBtn = document.querySelector('#gift .filter-toggle');
+            if (morePanel) morePanel.classList.remove('open');
+            if (toggleBtn) toggleBtn.classList.remove('open');
+            loadGifts(true);
         }
 
         // 页面加载后：给所有带 data-debounce 的 input 绑定 input 事件
