@@ -15,29 +15,37 @@ class RoomWelcomePlugin(BasePlugin):
         self._lock = threading.Lock()
 
     def process_message(self, message: dict):
-        if message.get('消息类型') != '互动':
-            return
-        if message.get('动作') != '进入直播间':
-            return
-        if self.is_self_danmu(message):
+        msg_type = message.get('消息类型')
+        action = message.get('动作')
+        if msg_type != '互动' or action != '进入直播间':
             return
 
         uid = str(message.get('用户ID', ''))
+        username = message.get('用户名', '观众')
+        print(f"[RoomWelcome] 收到进入事件: uid={uid}, 用户={username}")
+
+        if self.is_self_danmu(message):
+            print(f"[RoomWelcome] 跳过自己")
+            return
+
         cooldown = self._config.get('同一用户冷却秒', 60)
         now = time.time()
 
         with self._lock:
-            if now - self._welcome_log.get(uid, 0) < cooldown:
+            last = self._welcome_log.get(uid, 0)
+            if now - last < cooldown:
+                print(f"[RoomWelcome] 冷却中，跳过 {username} ({now - last:.1f}s < {cooldown}s)")
                 return
             self._welcome_log[uid] = now
 
         templates = self._config.get('欢迎模板列表', [])
         if not templates:
+            print(f"[RoomWelcome] 模板列表为空")
             return
 
-        username = message.get('用户名', '观众')
         reply = random.choice(templates).replace('{username}', username)
-        self.send_danmu(reply)
+        result = self.send_danmu(reply)
+        print(f"[RoomWelcome] 发送: {reply} → {result}")
 
     def cleanup(self):
         with self._lock:

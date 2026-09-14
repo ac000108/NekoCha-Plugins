@@ -1,8 +1,8 @@
 {
     "name": "弹幕欢迎",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "观众进入直播间时自动发送欢迎弹幕，随机抽取模板。",
-    "automatic": true,
+    "automatic": false,
     "enabled": false,
     "同一用户冷却秒": 60,
     "欢迎模板列表": [
@@ -13,18 +13,10 @@
         "欢迎{username}, 什么星座的呀?",
         "欢迎{username}, 最喜欢你捏",
         "欢迎{username}, 今天也要开心哦~",
-        "欢迎{username}, 喝口水先~",
         "欢迎{username}, 坐下来慢慢看~",
         "欢迎{username}, 你来得正好!",
-        "{username} 终于来了!",
-        "嘿{username}, 又见面了~",
         "欢迎{username}, 主播正在等你呢~",
-        "欢迎{username}, 新面孔耶~",
         "{username}, 今天也要元气满满!",
-        "欢迎{username}, 打工人辛苦了~",
-        "欢迎{username}, 下班了?",
-        "欢迎{username}, 今天想听点什么歌?",
-        "欢迎{username}, 周末快乐!",
-        "欢迎{username}, 作业写完了吗?"
+        "欢迎{username}, 今天想听点什么歌?"
     ]
 }

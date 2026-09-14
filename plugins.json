@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789420478,
+  "updated_at": 1789422031,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -250,18 +250,18 @@
     {
       "name": "room_welcome",
       "display_name": "弹幕欢迎",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "观众进入直播间时自动发送欢迎弹幕，随机抽取模板。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "85ba67614b7880ec99701b86e29a0dd2859acd59ee5ded1ab541712c5b01da34",
-          "size": 1313
+          "sha256": "22879e59e305145c10c34ca37be8673a7cfe9ca642f770e5705dfb8eb6eff37d",
+          "size": 1722
         },
         {
           "path": "config.json",
-          "sha256": "eacca0fa0841a692fa7c094186fb03bffb2798dbb2ae15ce180ffbe1fbf9eddf",
-          "size": 1199
+          "sha256": "df8f8ed86dd39f381cd6057623493ab909360d5d49b4182adf7d41166c75aef3",
+          "size": 849
         }
       ]
     }
