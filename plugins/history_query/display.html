@@ -434,11 +434,19 @@
                 <input type="number" class="value-input" id="giftMinValue" placeholder="最小花费(CNY)" onkeydown="if(event.key==='Enter') loadGifts()">
                 <span class="time-label">从</span><input type="datetime-local" class="time-input" id="giftStart">
                 <span class="time-label">到</span><input type="datetime-local" class="time-input" id="giftEnd">
-                <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-secondary);cursor:pointer;margin-left:auto;">
-                    <input type="checkbox" id="giftMerge" onchange="loadGifts(true)"> 合并显示
-                </label>
+                <select class="time-input" id="giftMergeLevel" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
+                    <option value="none">不合并</option>
+                    <option value="gift">按礼物合并</option>
+                    <option value="user">按人合并</option>
+                </select>
+                <select class="time-input" id="giftSort" onchange="loadGifts(true)" style="width:auto;cursor:pointer;">
+                    <option value="time_desc">时间最新</option>
+                    <option value="time_asc">时间最旧</option>
+                    <option value="value_desc">金额最高</option>
+                    <option value="value_asc">金额最低</option>
+                </select>
                 <button class="btn btn-primary" onclick="loadGifts()">查询</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftUser').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value='';document.getElementById('giftMerge').checked=false; loadGifts()">重置</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('giftKeyword').value='';document.getElementById('giftUser').value='';document.getElementById('giftMinValue').value='';document.getElementById('giftStart').value='';document.getElementById('giftEnd').value='';document.getElementById('giftMergeLevel').value='none';document.getElementById('giftSort').value='time_desc'; loadGifts()">重置</button>
             </div>
             <div class="summary-bar" id="giftSummaryBar">
                 <div class="summary-item">
@@ -558,7 +566,8 @@
                 '礼物数量': '数量',
                 '总价值': '花费',
                 '盲盒盈亏': '盈亏',
-                '时间戳': '时间'
+                '时间戳': '时间',
+                '礼物名称列表': '送过的礼物'
             },
             '醒目留言': {
                 '头像URL': '用户',
@@ -724,7 +733,8 @@
             const minCoin = Math.round(minVal * 1000);
             const keyword = document.getElementById('giftKeyword').value.trim();
             const userKeyword = document.getElementById('giftUser').value.trim();
-            const merge = document.getElementById('giftMerge').checked;
+            const mergeLevel = document.getElementById('giftMergeLevel').value; // none / gift / user
+            const sortKey = document.getElementById('giftSort').value;
 
             // 构建 WHERE 条件（用 AND 组合）
             const conditions = [];
@@ -745,17 +755,30 @@
             whereSql = appendTimeRange(whereSql, params, 'giftStart', 'giftEnd');
             const sqlWhereClause = whereSql ? ' WHERE ' + whereSql : '';
 
-            // 根据合并开关选择不同的查询
+            // 排序映射：sortKey → { flat: 'xxx', agg: 'xxx' }
+            const SORT_MAP = {
+                time_desc:  { flat: 'id DESC',          agg: 'MAX(id) DESC' },
+                time_asc:   { flat: 'id ASC',           agg: 'MAX(id) ASC' },
+                value_desc: { flat: '总价值 DESC',       agg: 'SUM(总价值) DESC' },
+                value_asc:  { flat: '总价值 ASC',        agg: 'SUM(总价值) ASC' }
+            };
+
+            // 根据合并级别构建不同的查询
             let dataSql;
-            if (merge) {
-                // 合并模式：按 用户ID + 礼物ID 分组聚合（用 COALESCE/NULLIF 兜底防止空用户ID误合并）
+            const isAggregate = (mergeLevel !== 'none');
+            const orderBySql = SORT_MAP[sortKey] ? (isAggregate ? SORT_MAP[sortKey].agg : SORT_MAP[sortKey].flat) : 'id DESC';
+
+            if (mergeLevel === 'none') {
+                dataSql = `SELECT * FROM gift${sqlWhereClause} ORDER BY ${orderBySql} LIMIT ? OFFSET ?`;
+            } else if (mergeLevel === 'gift') {
+                // 按人 + 按礼物合并
                 dataSql = `SELECT 
                     MIN(头像URL) as 头像URL,
                     MIN(用户名) as 用户名,
                     MIN(用户ID) as 用户ID,
-                    MIN(粉丝牌名称) as 粉丝牌名称,
-                    MIN(粉丝牌等级) as 粉丝牌等级,
-                    MIN(舰长等级) as 舰长等级,
+                    MAX(粉丝牌名称) as 粉丝牌名称,
+                    MAX(CAST(粉丝牌等级 AS INTEGER)) as 粉丝牌等级,
+                    MAX(舰长等级) as 舰长等级,
                     MIN(礼物图片URL) as 礼物图片URL,
                     礼物ID as 礼物ID,
                     MIN(礼物名称) as 礼物名称,
@@ -765,13 +788,29 @@
                     MAX(是否盲盒) as 是否盲盒,
                     MAX(盲盒名称) as 盲盒名称,
                     SUM(盲盒盈亏) as 盲盒盈亏,
-                    MAX(时间戳) as 时间戳,
+                    strftime('%Y-%m-%d %H:%M:%S', MIN(时间戳), 'unixepoch') || ' ~ ' || strftime('%Y-%m-%d %H:%M:%S', MAX(时间戳), 'unixepoch') as 时间戳,
                     MAX(id) as id
                     FROM gift${sqlWhereClause}
                     GROUP BY COALESCE(NULLIF(用户ID,''), 用户名), 礼物ID
-                    ORDER BY MAX(id) DESC LIMIT ? OFFSET ?`;
+                    ORDER BY ${orderBySql} LIMIT ? OFFSET ?`;
             } else {
-                dataSql = `SELECT * FROM gift${sqlWhereClause} ORDER BY id DESC LIMIT ? OFFSET ?`;
+                // 按人合并
+                dataSql = `SELECT 
+                    MIN(头像URL) as 头像URL,
+                    MIN(用户名) as 用户名,
+                    MIN(用户ID) as 用户ID,
+                    MAX(粉丝牌名称) as 粉丝牌名称,
+                    MAX(CAST(粉丝牌等级 AS INTEGER)) as 粉丝牌等级,
+                    MAX(舰长等级) as 舰长等级,
+                    GROUP_CONCAT(DISTINCT 礼物名称, ' | ') as 礼物名称列表,
+                    SUM(礼物数量) as 礼物数量,
+                    SUM(总价值) as 总价值,
+                    SUM(盲盒盈亏) as 盲盒盈亏,
+                    strftime('%Y-%m-%d %H:%M:%S', MIN(时间戳), 'unixepoch') || ' ~ ' || strftime('%Y-%m-%d %H:%M:%S', MAX(时间戳), 'unixepoch') as 时间戳,
+                    MAX(id) as id
+                    FROM gift${sqlWhereClause}
+                    GROUP BY COALESCE(NULLIF(用户ID,''), 用户名)
+                    ORDER BY ${orderBySql} LIMIT ? OFFSET ?`;
             }
             const summarySql = `SELECT COALESCE(SUM(总价值),0) as total, COUNT(*) as cnt, COALESCE(SUM(CASE WHEN 是否盲盒=1 THEN 盲盒盈亏 ELSE 0 END),0) as blind_profit FROM gift${sqlWhereClause}`;
             const dataParams = [...params, PAGE_SIZE, state.offset];
@@ -1061,6 +1100,14 @@
                 </div></td>`;
             }
 
+            // 送过的礼物列表（按人合并模式专用）
+            if (field === '礼物名称列表') {
+                if (!rawValue) return '<td>-</td>';
+                const names = rawValue.split(' | ').filter(Boolean);
+                const tags = names.map(n => `<span style="display:inline-block;padding:1px 6px;margin:1px;border-radius:4px;background:#f1f5f9;color:var(--text-secondary);font-size:11px;">${escapeHtml(n)}</span>`).join('');
+                return `<td style="max-width:200px;word-break:break-all;">${tags}</td>`;
+            }
+
             // 弹幕内容
             if (field === '弹幕内容') {
                 const imgUrl = row['图片链接'] || '';
@@ -1114,8 +1161,9 @@
 
             // 盲盒盈亏
             if (field === '盲盒盈亏') {
-                const isBlindBox = row['是否盲盒'] == 1;
-                if (!isBlindBox) return '<td class="cell-profit-none">-</td>';
+                // 只有当 是否盲盒 字段存在且不为盲盒时才显示 '-'
+                // 按人合并模式下不返回 是否盲盒 字段，此时直接展示聚合值
+                if ('是否盲盒' in row && row['是否盲盒'] != 1) return '<td class="cell-profit-none">-</td>';
                 const cny = (parseInt(rawValue) || 0) / 1000;
                 const sign = cny > 0 ? '+' : '';
                 const cls = cny > 0 ? 'cell-profit-pos' : (cny < 0 ? 'cell-profit-neg' : 'cell-profit-none');
