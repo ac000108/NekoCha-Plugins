@@ -1,9 +1,8 @@
 {
     "name": "定时任务",
-    "version": "1.0.18",
+    "version": "1.0.21",
     "description": "从随机列表抽取内容定时发送弹幕，支持时间间隔和发言间隔双重条件",
-    "automatic": false,
-    "enabled": false,
+    "mode": "off",
     "最小间隔分钟": 5,
     "最小发言次数": 3,
     "随机列表": [

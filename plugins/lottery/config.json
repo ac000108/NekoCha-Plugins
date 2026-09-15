@@ -1,9 +1,8 @@
 {
     "name": "抽签插件",
-    "version": "1.0.22",
+    "version": "1.0.25",
     "description": "弹幕抽签功能，展示窗口最佳260x450",
-    "automatic": false,
-    "enabled": false,
+    "mode": "off",
     "_group_begin_trigger": null,
     "触发词": "抽签",
     "启用冷却": true,

@@ -1,8 +1,7 @@
 {
     "name": "礼物展示",
-    "version": "1.1.23",
-    "automatic": false,
-    "enabled": false,
+    "version": "1.1.26",
+    "mode": "off",
     "description": "每秒查询数据库，滚动展示最新礼物记录",
     "合并同用户同礼物": true,
     "合并窗口秒数": 300,
