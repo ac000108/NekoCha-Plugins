@@ -402,24 +402,6 @@ class LiveStatusNoticePlugin(BasePlugin):
         # LIVE 消息自带的开播时间（Unix 秒），API 兜底为辅
         self._live_start_ts = None
 
-    def _bind_room(self, room_id: str):
-        super()._bind_room(room_id)
-        # 主动查一次 B 站 API 拿当前直播状态 + 开播时间做基线
-        # B 站 WS 只在开播/下播瞬间推 LIVE/PREPARING，不会告诉你"当前状态"
-        # 所以必须主动查询才能避免冷启动误判
-        if room_id:
-            try:
-                info = _fetch_room_info(str(room_id))
-                status = int(info.get('live_status', 0))
-                with self._lock:
-                    self._last_status = status
-                    # 中途开启/插件 reload 时主播已在播：API 能拿到 live_time 就存上
-                    if status == 1:
-                        self._live_start_ts = info.get('live_start_ts') or None
-            except Exception:
-                # API 调用失败也没关系，会在 process_message 里兜底
-                pass
-
     def process_message(self, message: dict):
         if message.get('消息类型') != '直播状态':
             return
