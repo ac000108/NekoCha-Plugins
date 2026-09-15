@@ -401,6 +401,24 @@ class LiveStatusNoticePlugin(BasePlugin):
         self._lock = threading.Lock()
         # LIVE 消息自带的开播时间（Unix 秒），API 兜底为辅
         self._live_start_ts = None
+        # 立即起后台线程：等框架赋值 _room_id → 查 API 设基线
+        threading.Thread(target=self._init_baseline, daemon=True).start()
+
+    def _init_baseline(self):
+        """程序启动时主动查一次 API 设基线，避免「消息到了才查」的竞态"""
+        import time as _t
+        for _ in range(60):          # 等 _room_id（最多 60s，正常秒级就到）
+            if self._room_id: break
+            _t.sleep(0.5)
+        else: return
+        try:
+            info = _fetch_room_info(str(self._room_id))
+            with self._lock:
+                self._last_status = info.get('live_status')
+                if self._last_status == 1:
+                    self._live_start_ts = info.get('live_start_ts')
+        except Exception:
+            pass  # API 挂了 → process_message 兜底
 
     def process_message(self, message: dict):
         if message.get('消息类型') != '直播状态':
@@ -411,13 +429,21 @@ class LiveStatusNoticePlugin(BasePlugin):
         except (TypeError, ValueError):
             return
 
+        # 首次进来：等后台线程查完 baseline（锁外轮询，不会死锁）
+        if self._last_status is None:
+            import time as _t
+            for _ in range(10):       # 最多等 5s（线程应该早完成了）
+                _t.sleep(0.5)
+                if self._last_status is not None: break
+
         with self._lock:
             if self._last_status is None:
-                # API 也查失败的兜底：第一次收到状态只建基线，不触发
+                # 线程也没设上（API 全挂）→ 用这条消息做基线兜底
                 self._last_status = status
                 if status == 1:
                     self._live_start_ts = message.get('live_time') or None
                 return
+
             if status == self._last_status:
                 return
             self._last_status = status
