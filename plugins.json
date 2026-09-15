@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789487900,
+  "updated_at": 1789491957,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -168,17 +168,17 @@
     {
       "name": "live_status_notice",
       "display_name": "开播下播通知",
-      "version": "1.3.14",
+      "version": "1.3.15",
       "description": "在直播间开播/下播/切轮播时自动发送弹幕通知，同时调用 NapCat 向 QQ 群发送消息。\n\n支持模板变量：{live_time}（直播时长，仅下播）、{uname}（主播名）、{room_id}（房间号）、{title}（直播标题）。在开播/下播弹幕、开播/下播群文字中使用即可自动替换。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "44a2252ead27d3d9c1a154063abc78476134035e3bab3e126b9ed4c81b6f5806",
-          "size": 26023
+          "sha256": "6b4b55509c779d8085adf16ebcf4c6b15a10200896133c8689ab52a16d662f82",
+          "size": 26025
         },
         {
           "path": "config.json",
-          "sha256": "34a630ba056252c4730e9d793371bbcd1584e8ac0edbadc4af8f7e475f288326",
+          "sha256": "55f714995112eacdbfb0fe5e1834feb0e2ecc9ab2a650b992f2cf218dcb557a2",
           "size": 1303
         },
         {

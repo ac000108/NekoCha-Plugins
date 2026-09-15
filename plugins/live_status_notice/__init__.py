@@ -424,6 +424,7 @@ class LiveStatusNoticePlugin(BasePlugin):
         if message.get('消息类型') != '直播状态':
             return
 
+
         try:
             status = int(message.get('直播状态', -1))
         except (TypeError, ValueError):
