@@ -13,13 +13,29 @@ class RoomWelcomePlugin(BasePlugin):
         super().__init__(name, plugin_path)
         self._welcome_log = {}  # {uid: timestamp}
         self._lock = threading.Lock()
+        self._in_lottery = False  # 天选时刻进行中
 
     def process_message(self, message: dict):
-        if message.get('消息类型') != '互动':
+        msg_type = message.get('消息类型')
+
+        # 天选状态维护
+        if msg_type == '天选':
+            stage = message.get('阶段')
+            if stage == '开始':
+                self._in_lottery = True
+            elif stage == '结束':
+                self._in_lottery = False
+            return
+
+        if msg_type != '互动':
             return
         if message.get('动作') != '进入直播间':
             return
         if self.is_self_danmu(message):
+            return
+
+        # 天选时跳过
+        if self._in_lottery and self._config.get('天选时禁用欢迎', True):
             return
 
         uid = str(message.get('用户ID', ''))
@@ -42,3 +58,4 @@ class RoomWelcomePlugin(BasePlugin):
     def cleanup(self):
         with self._lock:
             self._welcome_log.clear()
+        self._in_lottery = False

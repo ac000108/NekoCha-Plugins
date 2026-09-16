@@ -1,0 +1,6 @@
+{
+    "name": "PK 对手情报",
+    "version": "1.0.1",
+    "description": "PK 开始时自动查询对手房间信息，发送到本房间弹幕",
+    "mode": "manual"
+}

@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789491957,
+  "updated_at": 1789566299,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -214,18 +214,18 @@
     {
       "name": "room_welcome",
       "display_name": "弹幕欢迎",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "description": "观众进入直播间时自动发送欢迎弹幕，随机抽取模板。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "85ba67614b7880ec99701b86e29a0dd2859acd59ee5ded1ab541712c5b01da34",
-          "size": 1313
+          "sha256": "b50c12009b77a8857ac1f2054f3263e4b44ebf52ca192f2e028a0d2366daabd5",
+          "size": 1835
         },
         {
           "path": "config.json",
-          "sha256": "0f5f34ce3e4d7b707cf9d90fd32315c6acf2d65975dce67f9c6ca2f23cecb62a",
-          "size": 1173
+          "sha256": "259057221573143aeca6079ad63a730c0bd4d45180ad02e440ef1a73268a0036",
+          "size": 1209
         }
       ]
     },
@@ -262,6 +262,24 @@
           "path": "config.json",
           "sha256": "b1ea6cd91eb0850feb8b9f50d602527deba9834e470bb90f36d777a484a71cd8",
           "size": 409
+        }
+      ]
+    },
+    {
+      "name": "pk_notice",
+      "display_name": "PK 对手情报",
+      "version": "1.0.1",
+      "description": "PK 开始时自动查询对手房间信息，发送到本房间弹幕",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "981461e029d4dcc03f51bd07b433d959e83ab2f9f51299e156cfd2caea962b50",
+          "size": 5857
+        },
+        {
+          "path": "config.json",
+          "sha256": "54469e115ec192ea604a887f9964a72a3744d6707133553dd47441033641c74e",
+          "size": 176
         }
       ]
     }
