@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点歌队列</title>
+    <style>
+        /* ============ 字体 ============ */
+        @font-face {
+            font-family: 'Yozai';
+            src: url('/static/fonts/yozai.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            background: transparent;
+            font-family: 'Yozai', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        /* ============ Toast 通知卡 ============ */
+        .toast-wrap {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .toast {
+            opacity: 0;
+            transform: translateY(30px) scale(0.9);
+            transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .toast.show { opacity: 1; transform: translateY(0) scale(1); }
+        .toast.hide { opacity: 0; transform: translateY(-10px) scale(0.95); }
+
+        .toast-card {
+            position: relative;
+            width: 380px;
+            padding: 22px 28px 20px;
+            background: linear-gradient(135deg,
+                rgba(255, 235, 245, 0.96) 0%,
+                rgba(255, 225, 240, 0.94) 40%,
+                rgba(255, 218, 236, 0.92) 100%);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 22px;
+            border: 1.5px solid rgba(255, 182, 213, 0.7);
+            box-shadow:
+                0 8px 32px rgba(255, 130, 180, 0.25),
+                0 2px 8px rgba(255, 130, 180, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            overflow: hidden;
+        }
+
+        /* 卡片装饰：粉色光晕 */
+        .toast-card::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(255, 182, 213, 0.6) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .toast-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .toast-icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+        .toast-label {
+            font-size: 15px;
+            color: #c2185b;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+        .toast-user {
+            font-size: 15px;
+            color: #880e4f;
+            font-weight: 600;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .toast-song {
+            font-size: 32px;
+            font-weight: 700;
+            color: #6a1b4a;
+            text-align: center;
+            padding: 14px 0 12px;
+            line-height: 1.2;
+            letter-spacing: 2px;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        .toast-trigger {
+            text-align: center;
+            font-size: 13px;
+            color: #ad1457;
+            opacity: 0.7;
+        }
+
+        /* ============ 队列列表 ============ */
+        .queue {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            width: 260px;
+            max-height: 420px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+
+        .queue-card {
+            background: linear-gradient(160deg,
+                rgba(255, 240, 247, 0.92) 0%,
+                rgba(255, 232, 243, 0.90) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 18px;
+            border: 1.5px solid rgba(255, 192, 219, 0.6);
+            box-shadow:
+                0 6px 24px rgba(255, 130, 180, 0.18),
+                0 2px 6px rgba(255, 130, 180, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            overflow: hidden;
+        }
+
+        .queue-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px 10px;
+            border-bottom: 1px solid rgba(255, 192, 219, 0.4);
+        }
+        .queue-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #880e4f;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .queue-count {
+            font-size: 13px;
+            color: #c2185b;
+            background: rgba(255, 182, 213, 0.4);
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .queue-list {
+            padding: 6px 0;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+        .queue-list::-webkit-scrollbar { width: 4px; }
+        .queue-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 150, 190, 0.4);
+            border-radius: 2px;
+        }
+
+        .queue-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            gap: 10px;
+            opacity: 0;
+            transform: translateX(-12px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .queue-item.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .q-num {
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #c2185b;
+            background: rgba(255, 182, 213, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .queue-item:nth-child(1) .q-num {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fb1);
+            color: #fff;
+        }
+
+        .q-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .q-song {
+            font-size: 15px;
+            font-weight: 600;
+            color: #6a1b4a;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .q-user {
+            font-size: 12px;
+            color: #ad1457;
+            opacity: 0.65;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .queue-empty {
+            text-align: center;
+            padding: 24px 16px;
+            font-size: 14px;
+            color: #ad1457;
+            opacity: 0.55;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast 通知层 -->
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <!-- 队列列表 -->
+    <div class="queue">
+        <div class="queue-card">
+            <div class="queue-header">
+                <span class="queue-title">🎵 点歌队列</span>
+                <span class="queue-count" id="queueCount">0 首</span>
+            </div>
+            <div class="queue-list" id="queueList">
+                <div class="queue-empty" id="queueEmpty">等待观众点歌~ 🎶</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _parts = window.location.pathname.split('/').filter(Boolean);
+        const ROOM_ID = _parts[1] || null;
+        const PLUGIN_NAME = _parts[3] || null;
+
+        const SEP = '点歌｜';          // 后端回复模板分隔符
+        const POLL = 1500;             // 轮询间隔 ms
+        const MAX = 30;                // 队列上限
+        const TOAST_DURATION = 4000;   // toast 显示时长
+
+        let lastMaxId = 0;
+        let queue = [];                 // [{id, song, user, ts}]
+        let shownToastIds = new Set();  // 已弹过 toast 的 id，防止重复
+
+        const $list = document.getElementById('queueList');
+        const $count = document.getElementById('queueCount');
+        const $empty = document.getElementById('queueEmpty');
+        const $toastWrap = document.getElementById('toastWrap');
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        async function query(sql, params = []) {
+            if (!ROOM_ID) return [];
+            const r = await fetch('/api/db/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'sql=' + encodeURIComponent(sql) +
+                      '&params=' + encodeURIComponent(JSON.stringify(params)) +
+                      '&room_id=' + encodeURIComponent(ROOM_ID)
+            });
+            return r.json();
+        }
+
+        /** 从弹幕内容解析出 song 对象 */
+        function parseDanmu(row) {
+            const text = row['弹幕内容'] || '';
+            const idx = text.indexOf(SEP);
+            if (idx === -1) return null;
+            // song = 分隔符后面的部分
+            const song = text.substring(idx + SEP.length).trim();
+            if (!song) return null;
+            // user = 分隔符前面的部分（格式: "{用户名} 点歌"）
+            const before = text.substring(0, idx);
+            const user = before.replace(/\s*点歌\s*$/, '').trim() || '观众';
+            return {
+                id: row.id,
+                song: song,
+                user: user,
+                ts: row['时间戳'] || 0
+            };
+        }
+
+        // ==================== Toast ====================
+
+        function showToast(item) {
+            if (shownToastIds.has(item.id)) return;
+            shownToastIds.add(item.id);
+
+            const el = document.createElement('div');
+            el.className = 'toast';
+            el.innerHTML = `
+                <div class="toast-card">
+                    <div class="toast-top">
+                        <span class="toast-icon">🎵</span>
+                        <span class="toast-user">${esc(item.user)}</span>
+                        <span class="toast-label">点了一首</span>
+                    </div>
+                    <div class="toast-song">${esc(item.song)}</div>
+                </div>
+            `;
+            $toastWrap.appendChild(el);
+
+            requestAnimationFrame(() => el.classList.add('show'));
+
+            setTimeout(() => {
+                el.classList.remove('show');
+                el.classList.add('hide');
+                setTimeout(() => el.remove(), 500);
+            }, TOAST_DURATION);
+        }
+
+        // ==================== Queue ====================
+
+        function renderQueue() {
+            // 更新计数
+            $count.textContent = queue.length + ' 首';
+
+            if (queue.length === 0) {
+                $list.innerHTML = '';
+                $list.appendChild($empty);
+                return;
+            }
+
+            const firstRender = $list.children.length === 0 || $empty.parentNode;
+
+            // 重建 DOM
+            $list.innerHTML = queue.map((item, i) => `
+                <div class="queue-item" data-id="${item.id}">
+                    <div class="q-num">${i === 0 ? '▶' : i}</div>
+                    <div class="q-info">
+                        <div class="q-song">${esc(item.song)}</div>
+                        <div class="q-user">by ${esc(item.user)}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 重新触发动画
+            const items = $list.querySelectorAll('.queue-item');
+            if (firstRender) {
+                // 首次加载：逐项延迟出现
+                items.forEach((el, i) => {
+                    setTimeout(() => el.classList.add('show'), i * 60);
+                });
+            } else {
+                // 后续更新：前几个快速显现
+                items.forEach((el, i) => {
+                    if (el.classList.contains('show')) return;
+                    setTimeout(() => el.classList.add('show'), i * 40);
+                });
+            }
+        }
+
+        function mergeQueue(newItems) {
+            // 新的 → 插到队头；已有的跳过（同一首歌重复点不累计）
+            const existing = new Set(queue.map(q => q.song + '|' + q.user));
+            for (const item of newItems) {
+                const key = item.song + '|' + item.user;
+                if (!existing.has(key)) {
+                    queue.unshift(item);
+                    existing.add(key);
+                    // 新的触发 toast
+                    showToast(item);
+                }
+            }
+            // 上限截断（保留最新 MAX 条）
+            if (queue.length > MAX) {
+                queue = queue.slice(0, MAX);
+                // 清理对应 toast id
+                const keepIds = new Set(queue.map(q => q.id));
+                shownToastIds = new Set([...shownToastIds].filter(id => keepIds.has(id)));
+            }
+        }
+
+        // ==================== 轮询 ====================
+
+        async function poll() {
+            try {
+                const sql = `
+                    SELECT id, "弹幕内容", "时间戳"
+                    FROM danmu
+                    WHERE id > ? AND "弹幕内容" LIKE ?
+                    ORDER BY id DESC
+                    LIMIT 30
+                `;
+                const rows = await query(sql, [lastMaxId, '%' + SEP + '%']);
+                if (!rows || rows.length === 0) return;
+
+                const items = rows
+                    .map(parseDanmu)
+                    .filter(Boolean)
+                    .sort((a, b) => b.id - a.id);  // id DESC → 新的在前
+
+                if (items.length === 0) return;
+
+                lastMaxId = Math.max(...rows.map(r => r.id));
+                mergeQueue(items);
+                renderQueue();
+            } catch (e) {
+                console.error('[点歌队列] 轮询失败:', e);
+            }
+        }
+
+        async function init() {
+            if (!ROOM_ID) {
+                $empty.textContent = '错误: 缺少房间ID';
+                return;
+            }
+            // 初始加载最近 MAX 条
+            try {
+                const sql = `
+                    SELECT id, "弹幕内容", "时间戳"
+                    FROM danmu
+                    WHERE "弹幕内容" LIKE ?
+                    ORDER BY id DESC
+                    LIMIT ?
+                `;
+                const rows = await query(sql, ['%' + SEP + '%', MAX]);
+                if (rows && rows.length) {
+                    const items = rows.map(parseDanmu).filter(Boolean);
+                    // 旧 → 新 顺序填队列（倒序）
+                    queue = items.reverse();
+                    for (const item of queue) shownToastIds.add(item.id);
+                    if (queue.length) lastMaxId = Math.max(...rows.map(r => r.id));
+                    renderQueue();
+                }
+            } catch (e) {
+                console.error('[点歌队列] 初始化失败:', e);
+            }
+
+            setInterval(poll, POLL);
+            poll();
+        }
+
+        init();
+    </script>
+</body>
+</html>
