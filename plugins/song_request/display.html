@@ -198,6 +198,19 @@
             transform: translateX(0);
         }
 
+        /* 跳过/唱完 → 滑出消失动画 */
+        .queue-item.fade-out {
+            opacity: 0 !important;
+            transform: translateX(40px) !important;
+            max-height: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            transition: opacity 0.35s ease, transform 0.35s ease, max-height 0.35s ease, padding 0.35s ease !important;
+        }
+
         .q-num {
             width: 22px;
             height: 22px;
@@ -296,6 +309,7 @@
         let queue = [];                 // [{id, song, user, ts}]
         let shownToastIds = new Set();  // 已弹过 toast 的 id，防止重复
         let skipOffset = 0;             // 已跳过/唱完的首数（快捷键增减）
+        let fadingIds = new Set();      // 正在播放消失动画的弹幕 id
 
         const $list = document.getElementById('queueList');
         const $count = document.getElementById('queueCount');
@@ -391,9 +405,13 @@
             $list.innerHTML = queue.map((item, i) => {
                 const done = i < skipOffset;
                 const isNow = i === skipOffset;  // 当前正在唱
+                const fading = fadingIds.has(item.id);
                 const num = done ? '✓' : (isNow ? '▶' : i - skipOffset + 1);
+                const cls = ['queue-item'];
+                if (done) cls.push('done');
+                if (fading) cls.push('fade-out');
                 return `
-                <div class="queue-item${done ? ' done' : ''}" data-id="${item.id}">
+                <div class="${cls.join(' ')}" data-id="${item.id}">
                     <div class="q-num">${num}</div>
                     <div class="q-info">
                         <div class="q-song">${esc(item.song)}</div>
@@ -492,19 +510,34 @@
             }
 
             // ==================== 快捷键 ====================
-            // ] 下一首（跳过/唱完）   [ 上一首（恢复）    Shift+X 全部恢复
+            // ] 下一首（跳过/唱完，带滑出动画）   [ 上一首（恢复）   Shift+X 全部恢复
+            const FADE_MS = 350;
             document.addEventListener('keydown', e => {
-                // 如果在输入框里打字就不拦截
                 const tag = (e.target && e.target.tagName || '').toLowerCase();
                 if (tag === 'input' || tag === 'textarea') return;
 
                 if (e.key === ']' && !e.ctrlKey) {
-                    skipOffset++;
-                    renderQueue();
+                    // 标记当前唱的那首开始消失动画
+                    const idx = skipOffset;
+                    if (idx < queue.length && !fadingIds.has(queue[idx].id)) {
+                        fadingIds.add(queue[idx].id);
+                        renderQueue();
+                        // 动画跑完，skipOffset 增加（它变成 done），清除 fadingIds
+                        setTimeout(() => {
+                            skipOffset++;
+                            fadingIds.clear();
+                            renderQueue();
+                        }, FADE_MS);
+                    } else {
+                        skipOffset++;
+                        renderQueue();
+                    }
                 } else if (e.key === '[' && !e.ctrlKey) {
+                    fadingIds.clear();
                     skipOffset--;
                     renderQueue();
                 } else if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
+                    fadingIds.clear();
                     skipOffset = 0;
                     renderQueue();
                 }
