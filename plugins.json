@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789742184,
+  "updated_at": 1789744073,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -86,7 +86,7 @@
     {
       "name": "gift_show",
       "display_name": "礼物展示",
-      "version": "1.1.26",
+      "version": "1.1.27",
       "description": "每秒查询数据库，滚动展示最新礼物记录",
       "files": [
         {
@@ -96,13 +96,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "d2df2cd348fcc13112b03b05bb1facc6dd2b7f909517ba32036489210dbb3e41",
+          "sha256": "2763c8c1f94a28d76c1274c651c280078f7d43f6464ea7a1506bbabc71ce023e",
           "size": 351
         },
         {
           "path": "display.html",
-          "sha256": "5c926b3e53cce7d4b9781aacc0ad1122823188c8343cbe799c5c67ab878cc6a3",
-          "size": 18468
+          "sha256": "f2562374e005a0b327417bdbf4c70b616e18462024709a8b08c4c2d180fdf27c",
+          "size": 18497
         }
       ]
     },
@@ -127,7 +127,7 @@
     {
       "name": "history_query",
       "display_name": "历史查询",
-      "version": "1.0.28",
+      "version": "1.0.29",
       "description": "查询历史弹幕、礼物等消息记录",
       "files": [
         {
@@ -137,13 +137,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "a4118473ce79975df02a8f14656176642bef326881ef82d2724ac5ed50102135",
+          "sha256": "e29a8cc78c8f44e27fe940ea2b3d4613914dc7576e59906680f58db4fc98a51e",
           "size": 144
         },
         {
           "path": "display.html",
-          "sha256": "b8417eb1aa5703cf93f96a804b535d791ab81466c68b1edaecc7c8d324eed043",
-          "size": 64432
+          "sha256": "c75aae2225a8813e020a218c31c9e39396fcca5dd90a37395dc8ba647e27d6ed",
+          "size": 64459
         }
       ]
     },
