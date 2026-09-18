@@ -394,21 +394,19 @@
         }
 
         function mergeQueue(newItems) {
-            // 新的 → 插到队头；已有的跳过（同一首歌重复点不累计）
+            // 旧 → 新 顺序追加到队尾（新增排后面，编号递增）
             const existing = new Set(queue.map(q => q.song + '|' + q.user));
             for (const item of newItems) {
                 const key = item.song + '|' + item.user;
                 if (!existing.has(key)) {
-                    queue.unshift(item);
+                    queue.push(item);
                     existing.add(key);
-                    // 新的触发 toast
                     showToast(item);
                 }
             }
-            // 上限截断（保留最新 MAX 条）
+            // 保留最新 MAX 条（砍队头最旧的）
             if (queue.length > MAX) {
-                queue = queue.slice(0, MAX);
-                // 清理对应 toast id
+                queue = queue.slice(-MAX);
                 const keepIds = new Set(queue.map(q => q.id));
                 shownToastIds = new Set([...shownToastIds].filter(id => keepIds.has(id)));
             }
@@ -431,7 +429,7 @@
                 const items = rows
                     .map(parseDanmu)
                     .filter(Boolean)
-                    .sort((a, b) => b.id - a.id);  // id DESC → 新的在前
+                    .sort((a, b) => a.id - b.id);  // id ASC → 旧的在前
 
                 if (items.length === 0) return;
 
