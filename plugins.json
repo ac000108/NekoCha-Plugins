@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789731335,
+  "updated_at": 1789735343,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -268,23 +268,23 @@
     {
       "name": "song_request",
       "display_name": "点歌姬",
-      "version": "2.0.1",
-      "description": "通过弹幕或盲盒礼物触发点歌，支持冷却时间、每日上限、盲盒确认等详细权限控制。\n\n【点歌方式】\n1. 弹幕点歌：观众发送弹幕触发点歌\n2. 盲盒点歌：购买盲盒后 1 分钟内发送弹幕确认点歌\n\n【可用变量】\n{用户名} 观众昵称\n{歌曲名} 点的歌曲\n{礼物名称} 触发的礼物名\n{盲盒名称} 盲盒开出的礼物名\n{舰长等级} 用户舰长身份（舰长/提督/总督）",
+      "version": "3.0.1",
+      "description": "观众发送弹幕点歌，支持免费次数、冷却时间、盲盒续杯等权限控制。\n\n【点歌指令】\n随机点歌 → 从歌单随机选一首\n点歌 <歌名> → 指定歌单内歌曲",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "34ed515984569d4bbaff87218bbab205cbd86a02a063366dd09d9d32c05a1420",
-          "size": 9782
+          "sha256": "770e1e83cb2d6b81c338c61cf838265bc90057ea07be016d9c2de1ea0c146c2b",
+          "size": 8735
         },
         {
           "path": "config.json",
-          "sha256": "440952d717a513c92458cce7d5754442950c5f4b30d34dedd1530b195ac11f22",
-          "size": 2832
+          "sha256": "0c614eb005d36d568cfa98f9c997a286e24fbfd7f6e033630ed6c72a7a68dd55",
+          "size": 2432
         },
         {
           "path": "display.html",
-          "sha256": "1cb1e711660a3fc6e9423cb06dd6bb83e4ecbfb52912208feb9e98d9475404e6",
-          "size": 15785
+          "sha256": "f4575985296f962bfa8956bf6de539ae1c59336e0fb0243be06dfba53bb6613e",
+          "size": 15801
         }
       ]
     }
