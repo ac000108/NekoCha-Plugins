@@ -216,6 +216,21 @@
             color: #fff;
         }
 
+        /* 已唱/跳过 */
+        .queue-item.done .q-song {
+            text-decoration: line-through;
+            color: #b08aa0;
+            opacity: 0.55;
+        }
+        .queue-item.done .q-user {
+            opacity: 0.35;
+        }
+        .queue-item.done .q-num {
+            background: #d4c0cc;
+            color: #8e7080;
+            font-size: 11px;
+        }
+
         .q-info {
             flex: 1;
             min-width: 0;
@@ -280,6 +295,7 @@
         let lastMaxId = 0;
         let queue = [];                 // [{id, song, user, ts}]
         let shownToastIds = new Set();  // 已弹过 toast 的 id，防止重复
+        let skipOffset = 0;             // 已跳过/唱完的首数（快捷键增减）
 
         const $list = document.getElementById('queueList');
         const $count = document.getElementById('queueCount');
@@ -355,8 +371,13 @@
         // ==================== Queue ====================
 
         function renderQueue() {
-            // 更新计数
-            $count.textContent = queue.length + ' 首';
+            // 安全钳位
+            if (skipOffset < 0) skipOffset = 0;
+            if (skipOffset > queue.length) skipOffset = queue.length;
+
+            // 计数 = 未唱的数量
+            const remaining = queue.length - skipOffset;
+            $count.textContent = remaining + ' 首';
 
             if (queue.length === 0) {
                 $list.innerHTML = '';
@@ -367,25 +388,27 @@
             const firstRender = $list.children.length === 0 || $empty.parentNode;
 
             // 重建 DOM
-            $list.innerHTML = queue.map((item, i) => `
-                <div class="queue-item" data-id="${item.id}">
-                    <div class="q-num">${i === 0 ? '▶' : i}</div>
+            $list.innerHTML = queue.map((item, i) => {
+                const done = i < skipOffset;
+                const isNow = i === skipOffset;  // 当前正在唱
+                const num = done ? '✓' : (isNow ? '▶' : i - skipOffset + 1);
+                return `
+                <div class="queue-item${done ? ' done' : ''}" data-id="${item.id}">
+                    <div class="q-num">${num}</div>
                     <div class="q-info">
                         <div class="q-song">${esc(item.song)}</div>
                         <div class="q-user">by ${esc(item.user)}</div>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
 
             // 重新触发动画
             const items = $list.querySelectorAll('.queue-item');
             if (firstRender) {
-                // 首次加载：逐项延迟出现
                 items.forEach((el, i) => {
                     setTimeout(() => el.classList.add('show'), i * 60);
                 });
             } else {
-                // 后续更新：前几个快速显现
                 items.forEach((el, i) => {
                     if (el.classList.contains('show')) return;
                     setTimeout(() => el.classList.add('show'), i * 40);
@@ -467,6 +490,25 @@
             } catch (e) {
                 console.error('[点歌队列] 初始化失败:', e);
             }
+
+            // ==================== 快捷键 ====================
+            // ] 下一首（跳过/唱完）   [ 上一首（恢复）    Shift+X 全部恢复
+            document.addEventListener('keydown', e => {
+                // 如果在输入框里打字就不拦截
+                const tag = (e.target && e.target.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea') return;
+
+                if (e.key === ']' && !e.ctrlKey) {
+                    skipOffset++;
+                    renderQueue();
+                } else if (e.key === '[' && !e.ctrlKey) {
+                    skipOffset--;
+                    renderQueue();
+                } else if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
+                    skipOffset = 0;
+                    renderQueue();
+                }
+            });
 
             setInterval(poll, POLL);
             poll();
