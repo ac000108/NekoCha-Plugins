@@ -22,6 +22,76 @@
             pointer-events: none;
         }
 
+        /* ============ 控制面板模式 ============ */
+        body.panel-mode {
+            background: #fff;
+            pointer-events: auto;
+            overflow-y: auto;
+        }
+        body.panel-mode .queue {
+            position: relative;
+            left: 0; bottom: 0;
+            width: 100%;
+            max-height: none;
+        }
+        body.panel-mode .queue-card {
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            background: #fff;
+            backdrop-filter: none;
+        }
+        body.panel-mode .queue-header {
+            border-bottom: 1px solid #f0d8e4;
+        }
+
+        /* ============ 控制面板按钮 ============ */
+        .panel-bar {
+            position: relative;
+            display: flex;
+            gap: 10px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fff5f9, #ffeef5);
+            border-bottom: 1px solid #f5d5e3;
+        }
+        .panel-btn {
+            flex: 1;
+            padding: 12px 0;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+        }
+        .panel-btn-next {
+            background: linear-gradient(135deg, #ff7eb3, #ff9abf);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(255, 126, 179, 0.3);
+        }
+        .panel-btn-next:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 126, 179, 0.4);
+        }
+        .panel-btn-undo {
+            background: #fff;
+            color: #c2185b;
+            border: 1.5px solid #ffb6d1;
+        }
+        .panel-btn-undo:hover {
+            background: #fff5f9;
+        }
+        .panel-btn-reset {
+            background: #fff;
+            color: #888;
+            border: 1.5px solid #ddd;
+        }
+        .panel-btn-reset:hover {
+            background: #f9f9f9;
+        }
+
         /* ============ Toast 通知卡 ============ */
         .toast-wrap {
             position: fixed;
@@ -63,7 +133,6 @@
             overflow: hidden;
         }
 
-        /* 卡片装饰：粉色光晕 */
         .toast-card::before {
             content: '';
             position: absolute;
@@ -82,42 +151,29 @@
             gap: 10px;
             margin-bottom: 10px;
         }
-        .toast-icon {
-            font-size: 22px;
-            line-height: 1;
-        }
+        .toast-icon { font-size: 22px; line-height: 1; }
         .toast-label {
-            font-size: 15px;
-            color: #c2185b;
-            font-weight: 500;
-            letter-spacing: 1px;
+            font-size: 15px; color: #c2185b;
+            font-weight: 500; letter-spacing: 1px;
         }
         .toast-user {
-            font-size: 15px;
-            color: #880e4f;
+            font-size: 15px; color: #880e4f;
             font-weight: 600;
-            max-width: 160px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            max-width: 160px; overflow: hidden;
+            text-overflow: ellipsis; white-space: nowrap;
         }
 
         .toast-song {
-            font-size: 32px;
-            font-weight: 700;
-            color: #6a1b4a;
-            text-align: center;
+            font-size: 32px; font-weight: 700;
+            color: #6a1b4a; text-align: center;
             padding: 14px 0 12px;
-            line-height: 1.2;
-            letter-spacing: 2px;
+            line-height: 1.2; letter-spacing: 2px;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
         }
 
         .toast-trigger {
-            text-align: center;
-            font-size: 13px;
-            color: #ad1457;
-            opacity: 0.7;
+            text-align: center; font-size: 13px;
+            color: #ad1457; opacity: 0.7;
         }
 
         /* ============ 队列列表 ============ */
@@ -156,49 +212,33 @@
             border-bottom: 1px solid rgba(255, 192, 219, 0.4);
         }
         .queue-title {
-            font-size: 17px;
-            font-weight: 700;
-            color: #880e4f;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            font-size: 17px; font-weight: 700;
+            color: #880e4f; letter-spacing: 1px;
+            display: flex; align-items: center; gap: 6px;
         }
         .queue-count {
-            font-size: 13px;
-            color: #c2185b;
+            font-size: 13px; color: #c2185b;
             background: rgba(255, 182, 213, 0.4);
-            padding: 1px 8px;
-            border-radius: 10px;
-            font-weight: 500;
+            padding: 1px 8px; border-radius: 10px; font-weight: 500;
         }
 
         .queue-list {
             padding: 6px 0;
-            max-height: 360px;
-            overflow-y: auto;
+            max-height: 360px; overflow-y: auto;
         }
         .queue-list::-webkit-scrollbar { width: 4px; }
         .queue-list::-webkit-scrollbar-thumb {
-            background: rgba(255, 150, 190, 0.4);
-            border-radius: 2px;
+            background: rgba(255, 150, 190, 0.4); border-radius: 2px;
         }
 
         .queue-item {
-            display: flex;
-            align-items: center;
-            padding: 8px 16px;
-            gap: 10px;
-            opacity: 0;
-            transform: translateX(-12px);
+            display: flex; align-items: center;
+            padding: 8px 16px; gap: 10px;
+            opacity: 0; transform: translateX(-12px);
             transition: opacity 0.3s ease, transform 0.3s ease;
         }
-        .queue-item.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        .queue-item.show { opacity: 1; transform: translateX(0); }
 
-        /* 跳过/唱完 → 滑出消失动画 */
         .queue-item.fade-out {
             opacity: 0 !important;
             transform: translateX(40px) !important;
@@ -212,68 +252,44 @@
         }
 
         .q-num {
-            width: 22px;
-            height: 22px;
-            font-size: 12px;
-            font-weight: 600;
+            width: 22px; height: 22px;
+            font-size: 12px; font-weight: 600;
             color: #c2185b;
             background: rgba(255, 182, 213, 0.5);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
-        .queue-item:nth-child(1) .q-num {
+        .queue-item.current .q-num {
             background: linear-gradient(135deg, #ff6b9d, #ff8fb1);
             color: #fff;
         }
 
-        /* 已唱/跳过 */
         .queue-item.done .q-song {
             text-decoration: line-through;
-            color: #b08aa0;
-            opacity: 0.55;
+            color: #b08aa0; opacity: 0.55;
         }
-        .queue-item.done .q-user {
-            opacity: 0.35;
-        }
+        .queue-item.done .q-user { opacity: 0.35; }
         .queue-item.done .q-num {
-            background: #d4c0cc;
-            color: #8e7080;
-            font-size: 11px;
+            background: #d4c0cc; color: #8e7080; font-size: 11px;
         }
 
         .q-info {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
+            flex: 1; min-width: 0;
+            display: flex; flex-direction: column; gap: 2px;
         }
         .q-song {
-            font-size: 15px;
-            font-weight: 600;
-            color: #6a1b4a;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-size: 15px; font-weight: 600; color: #6a1b4a;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .q-user {
-            font-size: 12px;
-            color: #ad1457;
-            opacity: 0.65;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-size: 12px; color: #ad1457; opacity: 0.65;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         .queue-empty {
-            text-align: center;
-            padding: 24px 16px;
-            font-size: 14px;
-            color: #ad1457;
-            opacity: 0.55;
+            text-align: center; padding: 24px 16px;
+            font-size: 14px; color: #ad1457; opacity: 0.55;
         }
     </style>
 </head>
@@ -285,6 +301,12 @@
     <!-- 队列列表 -->
     <div class="queue">
         <div class="queue-card">
+            <!-- 控制面板模式才显示按钮栏 -->
+            <div class="panel-bar" id="panelBar" style="display:none;">
+                <button class="panel-btn panel-btn-next" id="btnNext">▶ 下一首</button>
+                <button class="panel-btn panel-btn-undo" id="btnUndo">↶ 恢复</button>
+                <button class="panel-btn panel-btn-reset" id="btnReset">清空</button>
+            </div>
             <div class="queue-header">
                 <span class="queue-title">🎵 点歌队列</span>
                 <span class="queue-count" id="queueCount">0 首</span>
@@ -299,22 +321,31 @@
         const _parts = window.location.pathname.split('/').filter(Boolean);
         const ROOM_ID = _parts[1] || null;
         const PLUGIN_NAME = _parts[3] || null;
+        const IS_PANEL = new URLSearchParams(location.search).get('panel') === '1';
 
-        const SEP = ' 点歌 ';          // 固定格式: {用户名} 点歌 {歌曲名}
-        const POLL = 1500;             // 轮询间隔 ms
-        const MAX = 30;                // 队列上限
-        const TOAST_DURATION = 4000;   // toast 显示时长
+        const SEP = ' 点歌 ';
+        const POLL = 1500;
+        const MAX = 30;
+        const TOAST_DURATION = 4000;
+        const STATE_KEY = 'skipOffset';
 
         let lastMaxId = 0;
-        let queue = [];                 // [{id, song, user, ts}]
-        let shownToastIds = new Set();  // 已弹过 toast 的 id，防止重复
-        let skipOffset = 0;             // 已跳过/唱完的首数（快捷键增减）
-        let fadingIds = new Set();      // 正在播放消失动画的弹幕 id
+        let queue = [];
+        let shownToastIds = new Set();
+        let skipOffset = 0;
+        let fadingIds = new Set();
 
         const $list = document.getElementById('queueList');
         const $count = document.getElementById('queueCount');
         const $empty = document.getElementById('queueEmpty');
         const $toastWrap = document.getElementById('toastWrap');
+        const $panelBar = document.getElementById('panelBar');
+
+        // 控制面板模式：切换 body class + 显示按钮
+        if (IS_PANEL) {
+            document.body.classList.add('panel-mode');
+            $panelBar.style.display = 'flex';
+        }
 
         function esc(s) {
             const d = document.createElement('div');
@@ -334,23 +365,38 @@
             return r.json();
         }
 
-        /** 从弹幕内容解析出 song 对象 */
+        async function fetchState() {
+            if (!ROOM_ID || !PLUGIN_NAME) return null;
+            try {
+                const r = await fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state?key=${STATE_KEY}`);
+                const data = await r.json();
+                if (data.success && data.value !== null && data.value !== undefined) {
+                    return data.value;
+                }
+            } catch (e) { /* 插件可能还没启动 */ }
+            return null;
+        }
+
+        async function saveState(value) {
+            if (!ROOM_ID || !PLUGIN_NAME) return;
+            try {
+                await fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: STATE_KEY, value: value })
+                });
+            } catch (e) { /* 忽略 */ }
+        }
+
         function parseDanmu(row) {
             const text = row['弹幕内容'] || '';
             const idx = text.indexOf(SEP);
             if (idx === -1) return null;
-            // song = 分隔符后面的部分
             const song = text.substring(idx + SEP.length).trim();
             if (!song) return null;
-            // user = 分隔符前面的部分（格式: "{用户名} 点歌"）
             const before = text.substring(0, idx);
             const user = before.replace(/\s*点歌\s*$/, '').trim() || '观众';
-            return {
-                id: row.id,
-                song: song,
-                user: user,
-                ts: row['时间戳'] || 0
-            };
+            return { id: row.id, song, user, ts: row['时间戳'] || 0 };
         }
 
         // ==================== Toast ====================
@@ -358,7 +404,6 @@
         function showToast(item) {
             if (shownToastIds.has(item.id)) return;
             shownToastIds.add(item.id);
-
             const el = document.createElement('div');
             el.className = 'toast';
             el.innerHTML = `
@@ -369,12 +414,9 @@
                         <span class="toast-label">点了一首</span>
                     </div>
                     <div class="toast-song">${esc(item.song)}</div>
-                </div>
-            `;
+                </div>`;
             $toastWrap.appendChild(el);
-
             requestAnimationFrame(() => el.classList.add('show'));
-
             setTimeout(() => {
                 el.classList.remove('show');
                 el.classList.add('hide');
@@ -385,11 +427,9 @@
         // ==================== Queue ====================
 
         function renderQueue() {
-            // 安全钳位
             if (skipOffset < 0) skipOffset = 0;
             if (skipOffset > queue.length) skipOffset = queue.length;
 
-            // 计数 = 未唱的数量
             const remaining = queue.length - skipOffset;
             $count.textContent = remaining + ' 首';
 
@@ -401,14 +441,17 @@
 
             const firstRender = $list.children.length === 0 || $empty.parentNode;
 
-            // 重建 DOM
             $list.innerHTML = queue.map((item, i) => {
                 const done = i < skipOffset;
-                const isNow = i === skipOffset;  // 当前正在唱
+                const isNow = i === skipOffset;
                 const fading = fadingIds.has(item.id);
-                const num = done ? '✓' : (isNow ? '▶' : i - skipOffset + 1);
+                let num;
+                if (done) num = '✓';
+                else if (isNow) num = '▶';
+                else num = i - skipOffset + 1;
                 const cls = ['queue-item'];
                 if (done) cls.push('done');
+                if (isNow) cls.push('current');
                 if (fading) cls.push('fade-out');
                 return `
                 <div class="${cls.join(' ')}" data-id="${item.id}">
@@ -420,22 +463,15 @@
                 </div>`;
             }).join('');
 
-            // 重新触发动画
             const items = $list.querySelectorAll('.queue-item');
-            if (firstRender) {
-                items.forEach((el, i) => {
-                    setTimeout(() => el.classList.add('show'), i * 60);
-                });
-            } else {
-                items.forEach((el, i) => {
-                    if (el.classList.contains('show')) return;
-                    setTimeout(() => el.classList.add('show'), i * 40);
-                });
-            }
+            items.forEach((el, i) => {
+                if (el.classList.contains('show')) return;
+                setTimeout(() => el.classList.add('show'),
+                    firstRender ? i * 60 : i * 40);
+            });
         }
 
         function mergeQueue(newItems) {
-            // 旧 → 新 顺序追加到队尾（新增排后面，编号递增）
             const existing = new Set(queue.map(q => q.song + '|' + q.user));
             for (const item of newItems) {
                 const key = item.song + '|' + item.user;
@@ -445,7 +481,6 @@
                     showToast(item);
                 }
             }
-            // 保留最新 MAX 条（砍队头最旧的）
             if (queue.length > MAX) {
                 queue = queue.slice(-MAX);
                 const keepIds = new Set(queue.map(q => q.id));
@@ -453,27 +488,62 @@
             }
         }
 
+        // ==================== 跳控制 ====================
+
+        const FADE_MS = 350;
+
+        async function doNext() {
+            const idx = skipOffset;
+            if (idx >= queue.length) return;
+            fadingIds.add(queue[idx].id);
+            renderQueue();
+            setTimeout(async () => {
+                fadingIds.clear();
+                skipOffset++;
+                renderQueue();
+                await saveState(skipOffset);
+            }, FADE_MS);
+        }
+
+        async function doUndo() {
+            fadingIds.clear();
+            if (skipOffset > 0) skipOffset--;
+            renderQueue();
+            await saveState(skipOffset);
+        }
+
+        async function doReset() {
+            fadingIds.clear();
+            skipOffset = 0;
+            renderQueue();
+            await saveState(skipOffset);
+        }
+
         // ==================== 轮询 ====================
 
         async function poll() {
             try {
+                // 同时读后端 skipOffset（控制面板模式可能改了）
+                const remote = await fetchState();
+                if (remote !== null && remote !== skipOffset) {
+                    skipOffset = remote;
+                    renderQueue();
+                }
+
                 const sql = `
                     SELECT id, "弹幕内容", "时间戳"
                     FROM danmu
                     WHERE id > ? AND "弹幕内容" LIKE ?
-                    ORDER BY id DESC
-                    LIMIT 30
+                    ORDER BY id DESC LIMIT 30
                 `;
                 const rows = await query(sql, [lastMaxId, '%' + SEP + '%']);
                 if (!rows || rows.length === 0) return;
 
                 const items = rows
-                    .map(parseDanmu)
-                    .filter(Boolean)
-                    .sort((a, b) => a.id - b.id);  // id ASC → 旧的在前
+                    .map(parseDanmu).filter(Boolean)
+                    .sort((a, b) => a.id - b.id);
 
                 if (items.length === 0) return;
-
                 lastMaxId = Math.max(...rows.map(r => r.id));
                 mergeQueue(items);
                 renderQueue();
@@ -487,19 +557,17 @@
                 $empty.textContent = '错误: 缺少房间ID';
                 return;
             }
-            // 初始加载最近 MAX 条
+            // 加载后端 skipOffset
+            const remote = await fetchState();
+            if (remote !== null) skipOffset = remote;
+
+            // 加载历史队列
             try {
-                const sql = `
-                    SELECT id, "弹幕内容", "时间戳"
-                    FROM danmu
-                    WHERE "弹幕内容" LIKE ?
-                    ORDER BY id DESC
-                    LIMIT ?
-                `;
+                const sql = `SELECT id, "弹幕内容", "时间戳" FROM danmu
+                    WHERE "弹幕内容" LIKE ? ORDER BY id DESC LIMIT ?`;
                 const rows = await query(sql, ['%' + SEP + '%', MAX]);
                 if (rows && rows.length) {
                     const items = rows.map(parseDanmu).filter(Boolean);
-                    // 旧 → 新 顺序填队列（倒序）
                     queue = items.reverse();
                     for (const item of queue) shownToastIds.add(item.id);
                     if (queue.length) lastMaxId = Math.max(...rows.map(r => r.id));
@@ -509,39 +577,26 @@
                 console.error('[点歌队列] 初始化失败:', e);
             }
 
-            // ==================== 快捷键 ====================
-            // ] 下一首（跳过/唱完，带滑出动画）   [ 上一首（恢复）   Shift+X 全部恢复
-            const FADE_MS = 350;
+            // 快捷键（OBS 展示模式用）
             document.addEventListener('keydown', e => {
                 const tag = (e.target && e.target.tagName || '').toLowerCase();
                 if (tag === 'input' || tag === 'textarea') return;
 
                 if (e.key === ']' && !e.ctrlKey) {
-                    // 标记当前唱的那首开始消失动画
-                    const idx = skipOffset;
-                    if (idx < queue.length && !fadingIds.has(queue[idx].id)) {
-                        fadingIds.add(queue[idx].id);
-                        renderQueue();
-                        // 动画跑完，skipOffset 增加（它变成 done），清除 fadingIds
-                        setTimeout(() => {
-                            skipOffset++;
-                            fadingIds.clear();
-                            renderQueue();
-                        }, FADE_MS);
-                    } else {
-                        skipOffset++;
-                        renderQueue();
-                    }
+                    e.preventDefault(); doNext();
                 } else if (e.key === '[' && !e.ctrlKey) {
-                    fadingIds.clear();
-                    skipOffset--;
-                    renderQueue();
+                    e.preventDefault(); doUndo();
                 } else if (e.shiftKey && (e.key === 'X' || e.key === 'x')) {
-                    fadingIds.clear();
-                    skipOffset = 0;
-                    renderQueue();
+                    e.preventDefault(); doReset();
                 }
             });
+
+            // 控制面板按钮
+            if (IS_PANEL) {
+                document.getElementById('btnNext').addEventListener('click', doNext);
+                document.getElementById('btnUndo').addEventListener('click', doUndo);
+                document.getElementById('btnReset').addEventListener('click', doReset);
+            }
 
             setInterval(poll, POLL);
             poll();
