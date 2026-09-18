@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789744073,
+  "updated_at": 1789772731,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -86,7 +86,7 @@
     {
       "name": "gift_show",
       "display_name": "礼物展示",
-      "version": "1.1.27",
+      "version": "1.1.28",
       "description": "每秒查询数据库，滚动展示最新礼物记录",
       "files": [
         {
@@ -96,13 +96,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "2763c8c1f94a28d76c1274c651c280078f7d43f6464ea7a1506bbabc71ce023e",
+          "sha256": "53b0384408a6329d301997659f392c4ad8464ab14e33efb0fc614136a9fa142b",
           "size": 351
         },
         {
           "path": "display.html",
-          "sha256": "f2562374e005a0b327417bdbf4c70b616e18462024709a8b08c4c2d180fdf27c",
-          "size": 18497
+          "sha256": "5c926b3e53cce7d4b9781aacc0ad1122823188c8343cbe799c5c67ab878cc6a3",
+          "size": 18468
         }
       ]
     },
@@ -127,7 +127,7 @@
     {
       "name": "history_query",
       "display_name": "历史查询",
-      "version": "1.0.29",
+      "version": "1.0.30",
       "description": "查询历史弹幕、礼物等消息记录",
       "files": [
         {
@@ -137,13 +137,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "e29a8cc78c8f44e27fe940ea2b3d4613914dc7576e59906680f58db4fc98a51e",
+          "sha256": "c3e62578ae8250571f78451c897f4b9dc9c0bfec3db67363c9a87004bb80de5b",
           "size": 144
         },
         {
           "path": "display.html",
-          "sha256": "c75aae2225a8813e020a218c31c9e39396fcca5dd90a37395dc8ba647e27d6ed",
-          "size": 64459
+          "sha256": "b8417eb1aa5703cf93f96a804b535d791ab81466c68b1edaecc7c8d324eed043",
+          "size": 64432
         }
       ]
     },
@@ -268,28 +268,23 @@
     {
       "name": "song_request",
       "display_name": "点歌姬",
-      "version": "3.0.4",
+      "version": "3.0.5",
       "description": "观众发送弹幕点歌，支持免费次数、冷却时间、盲盒续杯等权限控制。\n\n【点歌指令】\n随机点歌 → 从歌单随机选一首\n点歌 <歌名> → 指定歌单内歌曲",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "6ef438df824d29c93d59c6300392f57312b8c924560ce2887568ab63b3eb8790",
-          "size": 8829
+          "sha256": "770e1e83cb2d6b81c338c61cf838265bc90057ea07be016d9c2de1ea0c146c2b",
+          "size": 8735
         },
         {
           "path": "config.json",
-          "sha256": "0a191de20164565016b4df9a141264afacad7cdfd73208992bc0e2eef3a8de31",
+          "sha256": "09370fb8877500e19b7017105785efa9315ef019546d627eac82c3948d457263",
           "size": 2432
         },
         {
           "path": "display.html",
           "sha256": "da34571a588cb8c61f4207ce3b53caf759ecbe7fc77a6fc312db98999201b2b1",
           "size": 18882
-        },
-        {
-          "path": "launch_window.py",
-          "sha256": "af06b34de676a022824aa3d6b73ffb45ee0e7b5eee0127b9a0364cef2d4262ef",
-          "size": 1662
         }
       ]
     }
