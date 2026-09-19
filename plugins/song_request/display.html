@@ -263,8 +263,18 @@
 
         function renderQueue() {
             const removedSet = new Set(removedIds);
-            const visible = queue.filter(q => !removedSet.has(q.id));
-            $count.textContent = visible.length + ' 首';
+
+            // fading 的条目即使已被 removedIds 标记，也要渲染出来（为了动画）
+            const visible = queue.filter(q => {
+                if (removedSet.has(q.id) && !fadingIds.has(q.id)) return false;
+                return true;
+            });
+
+            // fade-out 时也要把它算"当前项"的位置
+            const fadeIdx = visible.findIndex(q => fadingIds.has(q.id));
+            // 被 shift 掉的那条后面的项，在 fade-out 时数字不应该跳
+
+            $count.textContent = (queue.filter(q => !removedSet.has(q.id)).length) + ' 首';
 
             if (visible.length === 0) {
                 $list.innerHTML = '';
@@ -274,10 +284,13 @@
 
             const firstRender = $list.children.length === 0 || $empty.parentNode;
 
-            $list.innerHTML = visible.map((item, i) => {
+            // 计算每个项目的"展示编号"（fade-out 项不占编号）
+            let displayIdx = -1;
+            $list.innerHTML = visible.map((item) => {
                 const fading = fadingIds.has(item.id);
-                const isFirst = i === 0;
-                const num = isFirst ? '▶' : i;
+                if (!fading) displayIdx++;
+                const isFirst = !fading && displayIdx === 0;
+                const num = isFirst ? '▶' : (fading ? '' : displayIdx);
                 const cls = ['queue-item'];
                 if (isFirst) cls.push('current');
                 if (fading) cls.push('fade-out');
@@ -293,43 +306,43 @@
 
             const items = $list.querySelectorAll('.queue-item');
             items.forEach((el, i) => {
-                if (el.classList.contains('show')) return;
+                if (el.classList.contains('show') || el.classList.contains('fade-out')) return;
                 setTimeout(() => el.classList.add('show'),
-                    firstRender ? i * 60 : i * 40);
+                    firstRender ? i * 60 : 0);
             });
         }
 
         // ==================== 控制 ====================
 
-        const FADE_MS = 350;
-        let removedIds = [];  // 持久化删除集合（有序列表，后删的在后面）
-
-        function packState(q, removed) {
-            return JSON.stringify({ queue: q, removed_ids: removed });
-        }
+        const FADE_MS = 400;
+        let removedIds = [];
+        let lastRemoteQueue = [];  // 缓存 poll 拉到的完整队列，供 undo 即时恢复
 
         async function doNext() {
             if (queue.length === 0) return;
-            const removed = queue.shift();
+            const removed = queue[0];
             fadingIds.add(removed.id);
-            removedIds.push(removed.id);
             renderQueue();
+            // 动画结束后真正删除
             setTimeout(async () => {
                 fadingIds.delete(removed.id);
+                queue.shift();
+                removedIds.push(removed.id);
+                knownIds.add(removed.id);   // 防止 undo 时 toast
+                renderQueue();
                 await _saveAll();
             }, FADE_MS);
         }
 
         async function doUndo() {
             if (removedIds.length === 0) return;
-            removedIds.pop();
-            await _saveAll();
-        }
-
-        async function doReset() {
-            fadingIds.clear();
-            removedIds.length = 0;
-            queue = [];
+            const id = removedIds.pop();
+            // 从缓存里找回来，即时恢复
+            const restored = lastRemoteQueue.find(q => q.id === id);
+            if (restored && !queue.some(q => q.id === id)) {
+                queue.unshift(restored);
+            }
+            knownIds.add(id);  // 防止 toast（这条本来就应该在 knownIds 里）
             renderQueue();
             await _saveAll();
         }
@@ -357,6 +370,7 @@
 
                 // 插件的 queue（纯数组）
                 const remoteQueue = Array.isArray(state.queue) ? state.queue : [];
+                lastRemoteQueue = remoteQueue;  // 缓存供 undo 用
                 // 前端的 queue_view（removedIds 数组）
                 const remoteRemoved = Array.isArray(state.queue_view) ? state.queue_view : [];
 
