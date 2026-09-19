@@ -34,12 +34,12 @@
         }
         .toast {
             opacity: 0;
-            transform: translateY(30px) scale(0.9);
-            transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(30px) scale(0.92);
+            transition: opacity 0.5s ease-out,
+                        transform 0.5s cubic-bezier(.34,1.56,.64,1);
         }
         .toast.show { opacity: 1; transform: translateY(0) scale(1); }
-        .toast.hide { opacity: 0; transform: translateY(-10px) scale(0.95); }
+        .toast.hide { opacity: 0; transform: translateY(20px) scale(0.96); transition-duration: 0.4s; }
 
         .toast-card {
             position: relative;
@@ -125,15 +125,26 @@
         .queue-item {
             display: flex; align-items: center; gap: 10px;
             padding: 8px 16px;
-            opacity: 0; transform: translateX(-12px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0; transform: translateX(-12px) scale(0.97);
+            transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.34,1.56,.64,1);
         }
-        .queue-item.show { opacity: 1; transform: translateX(0); }
+        .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
         .queue-item.fade-out {
-            opacity: 0 !important; transform: translateX(40px) !important;
+            opacity: 0 !important; transform: translateX(30px) scale(0.92) !important;
             max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important;
             margin: 0 !important; overflow: hidden !important; pointer-events: none !important;
-            transition: opacity 0.35s ease, transform 0.35s ease, max-height 0.35s ease, padding 0.35s ease !important;
+            transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease, padding 0.4s ease !important;
+        }
+
+        /* 当前唱的 —— 呼吸光晕 */
+        .queue-item.current .q-num {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fb1);
+            color: #fff;
+            animation: breathe 2.2s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.5); transform: scale(1); }
+            50%      { box-shadow: 0 0 0 6px rgba(255, 107, 157, 0); transform: scale(1.08); }
         }
 
         .q-num {
@@ -147,9 +158,6 @@
         .queue-item.current .q-num {
             background: linear-gradient(135deg, #ff6b9d, #ff8fb1); color: #fff;
         }
-        .queue-item.done .q-song { text-decoration: line-through; color: #b08aa0; opacity: 0.55; }
-        .queue-item.done .q-user { opacity: 0.35; }
-        .queue-item.done .q-num { background: #d4c0cc; color: #8e7080; font-size: 11px; }
 
         .q-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .q-song {
@@ -254,11 +262,11 @@
         // ==================== Render ====================
 
         function renderQueue() {
-            // 统计未唱数量
-            const pending = queue.filter(q => !q.done);
-            $count.textContent = pending.length + ' 首';
+            const removedSet = new Set(removedIds);
+            const visible = queue.filter(q => !removedSet.has(q.id));
+            $count.textContent = visible.length + ' 首';
 
-            if (queue.length === 0) {
+            if (visible.length === 0) {
                 $list.innerHTML = '';
                 $list.appendChild($empty);
                 return;
@@ -266,17 +274,12 @@
 
             const firstRender = $list.children.length === 0 || $empty.parentNode;
 
-            $list.innerHTML = queue.map((item, i) => {
-                const done = !!item.done;
+            $list.innerHTML = visible.map((item, i) => {
                 const fading = fadingIds.has(item.id);
-                const pendingBefore = queue.slice(0, i).filter(q => !q.done).length;
-                let num;
-                if (done) num = '✓';
-                else if (pendingBefore === 0) num = '▶';    // 第一个未唱
-                else num = pendingBefore;                   // 第几个待唱
+                const isFirst = i === 0;
+                const num = isFirst ? '▶' : i;
                 const cls = ['queue-item'];
-                if (done) cls.push('done');
-                else if (pendingBefore === 0) cls.push('current');
+                if (isFirst) cls.push('current');
                 if (fading) cls.push('fade-out');
                 return `
                 <div class="${cls.join(' ')}" data-id="${item.id}">
@@ -299,34 +302,50 @@
         // ==================== 控制 ====================
 
         const FADE_MS = 350;
+        let removedIds = [];  // 持久化删除集合（有序列表，后删的在后面）
+
+        function packState(q, removed) {
+            return JSON.stringify({ queue: q, removed_ids: removed });
+        }
 
         async function doNext() {
-            const idx = queue.findIndex(q => !q.done);
-            if (idx === -1) return;
-            fadingIds.add(queue[idx].id);
+            if (queue.length === 0) return;
+            const removed = queue.shift();
+            fadingIds.add(removed.id);
+            removedIds.push(removed.id);
             renderQueue();
             setTimeout(async () => {
-                queue[idx].done = true;
-                fadingIds.clear();
-                renderQueue();
-                await saveQueue(queue);
+                fadingIds.delete(removed.id);
+                await _saveAll();
             }, FADE_MS);
         }
 
         async function doUndo() {
-            // 把最后一个 done=true 的改回 false
-            const idx = queue.length - 1 - [...queue].reverse().findIndex(q => q.done);
-            if (idx < 0) return;
-            queue[idx].done = false;
-            renderQueue();
-            await saveQueue(queue);
+            if (removedIds.length === 0) return;
+            removedIds.pop();
+            await _saveAll();
         }
 
         async function doReset() {
             fadingIds.clear();
-            queue = queue.map(q => ({ ...q, done: false }));
+            removedIds.length = 0;
+            queue = [];
             renderQueue();
-            await saveQueue(queue);
+            await _saveAll();
+        }
+
+        async function _saveAll() {
+            if (!ROOM_ID || !PLUGIN_NAME) return;
+            try {
+                await fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        key: 'queue_view',
+                        value: removedIds
+                    })
+                });
+            } catch (e) {}
         }
 
         // ==================== 轮询 ====================
@@ -334,24 +353,48 @@
         async function poll() {
             try {
                 const state = await fetchState();
-                if (!state || !Array.isArray(state.queue)) return;
+                if (!state) return;
 
-                // 检测新增条目 → 弹 toast
-                for (const item of state.queue) {
-                    if (!knownIds.has(item.id)) {
+                // 插件的 queue（纯数组）
+                const remoteQueue = Array.isArray(state.queue) ? state.queue : [];
+                // 前端的 queue_view（removedIds 数组）
+                const remoteRemoved = Array.isArray(state.queue_view) ? state.queue_view : [];
+
+                const remoteIds = new Set(remoteQueue.map(q => q.id));
+                const myRemoved = new Set(removedIds);
+
+                // 1. 插件新加的 → 追加（除非已被前端标记删除）
+                let changed = false;
+                const myVisibleIds = new Set(queue.map(q => q.id));
+                for (const item of remoteQueue) {
+                    if (!myVisibleIds.has(item.id) && !myRemoved.has(item.id)) {
+                        queue.push(item);
+                        changed = true;
+                    }
+                }
+
+                // 2. 插件砍了的（超过50条）→ 同步移除
+                const beforeLen = queue.length;
+                queue = queue.filter(q => remoteIds.has(q.id));
+                if (queue.length !== beforeLen) changed = true;
+
+                // 3. 同步 removedIds（remote 是持久化的，本地刚删的也得合进去）
+                removedIds = [...new Set([...remoteRemoved, ...removedIds])];
+
+                // 4. Toast（只 toast 没被删的）
+                const removedSet = new Set(removedIds);
+                for (const item of remoteQueue) {
+                    if (!removedSet.has(item.id) && !knownIds.has(item.id)) {
                         showToast(item);
                     }
                 }
-                knownIds = new Set(state.queue.map(q => q.id));
+                knownIds = new Set(remoteQueue.filter(q => !removedSet.has(q.id)).map(q => q.id));
 
-                // 检查本地是否有未保存的改动（控制面板可能改了但 poll 被后端覆盖）
-                // 这里简单处理：以后端为准，因为插件也可能在同一时间追加
-                const myDone = queue.filter(q => q.done).map(q => q.id).sort().join(',');
-                const remoteDone = state.queue.filter(q => q.done).map(q => q.id).sort().join(',');
-                if (myDone !== remoteDone || queue.length !== state.queue.length) {
-                    queue = state.queue;
-                    renderQueue();
-                }
+                // 5. 合并后的显示队列 = remoteQueue 过滤 removedIds
+                // 但 queue 保持包含全部（用于 shift 时不丢数据）
+                // renderQueue 内部再过滤
+
+                if (changed) renderQueue();
             } catch (e) {
                 console.error('[点歌队列] 轮询失败:', e);
             }
@@ -367,21 +410,23 @@
                 return;
             }
 
-            // 初始化：读一次 state
+            // 初始化
             const state = await fetchState();
-            if (state && Array.isArray(state.queue)) {
-                queue = state.queue;
-                knownIds = new Set(queue.map(q => q.id));
-                renderQueue();
-            }
+            const remoteQueue = (state && Array.isArray(state.queue)) ? state.queue : [];
+            const remoteRemoved = (state && Array.isArray(state.queue_view)) ? state.queue_view : [];
 
-            // 快捷键（OBS 交互窗口或独立浏览器窗口聚焦时可用）
+            removedIds = [...remoteRemoved];
+            const removedSet = new Set(removedIds);
+            queue = remoteQueue.filter(q => !removedSet.has(q.id));
+            knownIds = new Set(queue.map(q => q.id));
+            renderQueue();
+
+            // 快捷键
             document.addEventListener('keydown', e => {
                 const tag = (e.target && e.target.tagName || '').toLowerCase();
                 if (tag === 'input' || tag === 'textarea') return;
                 if (e.key === ']' && !e.ctrlKey) { e.preventDefault(); doNext(); }
                 else if (e.key === '[' && !e.ctrlKey) { e.preventDefault(); doUndo(); }
-                else if (e.shiftKey && (e.key === 'X' || e.key === 'x')) { e.preventDefault(); doReset(); }
             });
 
             setInterval(poll, POLL);

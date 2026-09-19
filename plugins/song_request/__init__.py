@@ -33,27 +33,24 @@ class SongRequestPlugin(BasePlugin):
         self._pending_blind = {}  # {user_id: {'expire_ts': int}}
         # 从 state.json 恢复队列（框架重启不丢）
         self._queue = self.get_state('queue', []) or []
-        self._next_id = self.get_state('next_id', 1) or 1
 
     def _append_queue(self, song: str, variables: dict, trigger: str):
         """点歌成功后追加到队列并持久化"""
         with self._lock:
+            max_id = max((q.get('id', 0) for q in self._queue), default=0)
             item = {
-                'id': self._next_id,
+                'id': max_id + 1,
                 'song': song,
                 'user': variables.get('用户名', '观众'),
                 'user_id': variables.get('用户ID', 0),
                 'trigger': trigger,
-                'done': False,
                 'ts': int(time.time()),
             }
-            self._next_id += 1
             self._queue.append(item)
             # 只保留最近 50 条
             if len(self._queue) > 50:
                 self._queue = self._queue[-50:]
             self.set_state('queue', self._queue)
-            self.set_state('next_id', self._next_id)
 
     # ==================== 工具方法 ====================
 
