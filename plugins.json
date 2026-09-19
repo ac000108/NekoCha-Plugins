@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789839172,
+  "updated_at": 1789839723,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -268,7 +268,7 @@
     {
       "name": "song_request",
       "display_name": "点歌姬",
-      "version": "3.0.34",
+      "version": "3.0.35",
       "description": "观众发送弹幕点歌，支持免费次数、冷却时间、盲盒续杯等权限控制。\n\n【点歌指令】\n随机点歌 → 从歌单随机选一首\n点歌 <歌名> → 指定歌单内歌曲",
       "files": [
         {
@@ -278,13 +278,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "b8b0ca59d9efd0a97d3d30b25c99e65c3a4a27c1f3dc1ce1759b47f4d4389674",
+          "sha256": "9d66a6491d788b714f45f1b15e33c2a699d5980a50008750f7cf6f89edae3695",
           "size": 2433
         },
         {
           "path": "display.html",
-          "sha256": "f43634b75d6371d1c4376e611f33224710e21977ccb8cdba3457899aef5f870b",
-          "size": 14744
+          "sha256": "f5b5cf96de21399e092fef67a3fd43b4a465da5fb8957f574eb637fb092adbc1",
+          "size": 14809
         }
       ]
     }
