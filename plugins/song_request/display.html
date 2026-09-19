@@ -86,7 +86,13 @@
             width: 220px;
             z-index: 50; display: flex; flex-direction: column;
             pointer-events: auto;
+        }
+        .queue-list {
+            display: flex; flex-direction: column;
             gap: 6px;
+            overflow: hidden;
+            /* 3条高度固定 = 3*40px item + 2*6px gap = 132px */
+            max-height: 132px;
         }
         .queue-item {
             display: flex; align-items: center; gap: 8px;
@@ -246,11 +252,14 @@
             const removedSet = new Set(removedIds);
 
             // fading 的条目即使已被 removedIds 标记，也要渲染出来（为了动画）
+            const hasFading = fadingIds.size > 0;
+            // 有 fade-out 时，多显示一条让底下的提前进场，不会突兀跳出来
             const MAX_VISIBLE = 3;
+            const take = hasFading ? MAX_VISIBLE + 1 : MAX_VISIBLE;
             const visible = queue.filter(q => {
                 if (removedSet.has(q.id) && !fadingIds.has(q.id)) return false;
                 return true;
-            }).slice(0, MAX_VISIBLE);
+            }).slice(0, take);
 
             if (visible.length === 0) {
                 $list.innerHTML = '';
