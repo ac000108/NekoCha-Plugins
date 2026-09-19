@@ -85,7 +85,6 @@
             left: 20px; top: 180px;
             width: 220px;
             z-index: 50;
-            display: flex; flex-direction: column;
             pointer-events: auto;
         }
         .queue-list {
@@ -162,6 +161,10 @@
             background: rgba(255,255,255,0.45); border-radius: 10px;
         }
         .queue-more {
+            position: absolute;
+            left: 0;
+            top: 138px;   /* 3×40px item + 2×6px gap + 6px bottom gap */
+            right: 0;
             text-align: center;
             font-size: 11px; color: #ad1457; opacity: 0.55;
             padding: 2px 0;
