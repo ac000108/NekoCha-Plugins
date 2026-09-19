@@ -249,6 +249,9 @@
 
         const usedIds = new Set(renderList.map(q => q.id));
         const preloading = fadingId ? active.length > MAX_VISIBLE : false;
+        const visCount = preloading ? MAX_VISIBLE : renderList.length;
+        const lastVisIdx = visCount - 1;
+
         renderList.forEach((item, i) => {
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
@@ -258,8 +261,15 @@
             el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', isFirst);
-            // 编号：当前正在唱的显示 ▶，其他显示 index+1
-            el.querySelector('.q-num').textContent = isFirst ? '▶' : i + 1;
+            // 编号逻辑：
+            //   当前唱的 → ▶
+            //   最后一条可见 + 队列 > 3 → 显示总数（让用户知道还有多少）
+            //   其他 → index+1
+            let num;
+            if (isFirst) num = '▶';
+            else if (i === lastVisIdx && active.length > MAX_VISIBLE) num = active.length;
+            else num = i + 1;
+            el.querySelector('.q-num').textContent = num;
             if (!preloading || i < MAX_VISIBLE) {
                 el.classList.add('show');
             } else {
