@@ -263,6 +263,7 @@
         //    ★ 新条目直接创建 + 设对 top，opacity 0 靠 CSS 默认值隐藏
         //    加 .show 后 opacity 1 + transform 归零 → 安静显现
         const usedIds = new Set(renderList.map(q => q.id));
+        const preloading = fadingId ? active.length > MAX_VISIBLE : false;
         renderList.forEach((item, i) => {
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
@@ -271,7 +272,13 @@
             el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', !isFading && item.id === firstId);
-            el.classList.add('show');
+            // 预加载的那条（index >= MAX_VISIBLE）保持 opacity:0，不加 show
+            // 等 fade-out 结束后它自然升到前 3 位再加 show
+            if (!preloading || i < MAX_VISIBLE) {
+                el.classList.add('show');
+            } else {
+                el.classList.remove('show');
+            }
         });
 
         // 6. 不在 renderList 里的 → 隐藏；真没了 → 销毁
