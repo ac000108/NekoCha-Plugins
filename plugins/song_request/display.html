@@ -85,6 +85,7 @@
             left: 20px; top: 180px;
             width: 220px;
             z-index: 50;
+            display: flex; flex-direction: column;
             pointer-events: auto;
         }
         .queue-list {
@@ -162,9 +163,8 @@
         }
         .queue-more {
             position: absolute;
-            left: 0;
-            top: 138px;   /* 3×40px item + 2×6px gap + 6px bottom gap */
-            right: 0;
+            left: 0; right: 0;
+            top: 132px;  /* 3×40px + 2×6px gap = 132px，固定贴在第3条底部 */
             text-align: center;
             font-size: 11px; color: #ad1457; opacity: 0.55;
             padding: 2px 0;
