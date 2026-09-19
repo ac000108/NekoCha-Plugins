@@ -94,12 +94,30 @@
             background: rgba(255, 240, 248, 0.75);
             border-radius: 12px;
             opacity: 0; transform: translateX(-8px);
-            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.56,.64,1);
+            max-height: 40px;
+            transition:
+                opacity 0.35s ease,
+                transform 0.35s cubic-bezier(.34,1.56,.64,1),
+                max-height 0.35s ease,
+                padding 0.35s ease,
+                margin 0.35s ease;
+            overflow: hidden;
         }
         .queue-item.show { opacity: 1; transform: translateX(0); }
         .queue-item.fade-out {
-            opacity: 0 !important; transform: translateX(20px) scale(0.9) !important;
-            transition: opacity 0.3s ease, transform 0.3s ease !important;
+            opacity: 0 !important;
+            transform: translateX(20px) scale(0.95) !important;
+            max-height: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin: 0 !important;
+            border-width: 0 !important;
+            transition:
+                opacity 0.35s ease,
+                transform 0.35s ease,
+                max-height 0.35s ease,
+                padding 0.35s ease,
+                margin 0.35s ease !important;
         }
 
         .q-num {
@@ -133,6 +151,11 @@
             text-align: center; padding: 8px 10px;
             font-size: 13px; color: #c2185b; opacity: 0.7;
             background: rgba(255,255,255,0.45); border-radius: 10px;
+        }
+        .queue-more {
+            text-align: center;
+            font-size: 11px; color: #ad1457; opacity: 0.55;
+            padding: 2px 0;
         }
     </style>
 </head>
@@ -237,6 +260,9 @@
 
             const firstRender = $list.children.length === 0 || $empty.parentNode;
 
+            // 未被前端删除的完整队列 = 剩余总数
+            const remaining = queue.filter(q => !removedSet.has(q.id)).length;
+
             // 计算每个项目的"展示编号"（fade-out 项不占编号）
             let displayIdx = -1;
             $list.innerHTML = visible.map((item) => {
@@ -253,7 +279,7 @@
                     <div class="q-song">${esc(item.song)}</div>
                     <div class="q-user">${esc(item.user)}</div>
                 </div>`;
-            }).join('');
+            }).join('') + (remaining > MAX_VISIBLE ? `<div class="queue-more">...还有 ${remaining - MAX_VISIBLE} 首待播</div>` : '');
 
             const items = $list.querySelectorAll('.queue-item');
             items.forEach((el, i) => {
