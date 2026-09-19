@@ -31,8 +31,8 @@ class SongRequestPlugin(BasePlugin):
         self._daily_count = {}    # {user_id: count} 免费次数已用
         self._daily_date = {}     # {user_id: date_int} 日期标记
         self._pending_blind = {}  # {user_id: {'expire_ts': int}}
-        # 从 state.json 恢复队列（框架重启不丢）
-        self._queue = self.get_state('queue', []) or []
+        # 从 data.json 恢复队列（框架重启不丢）
+        self._queue = self.get_data('queue', []) or []
 
     def _append_queue(self, song: str, variables: dict, trigger: str):
         """点歌成功后追加到队列并持久化"""
@@ -50,7 +50,7 @@ class SongRequestPlugin(BasePlugin):
             # 只保留最近 50 条
             if len(self._queue) > 50:
                 self._queue = self._queue[-50:]
-            self.set_state('queue', self._queue)
+            self.set_data('queue', self._queue)
 
     # ==================== 工具方法 ====================
 

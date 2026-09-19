@@ -1,386 +1,389 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>点歌队列</title>
-    <style>
-        @font-face {
-            font-family: 'Yozai';
-            src: url('/static/fonts/yozai.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-        }
-        /* ====== 常量：改一处全生效 ====== */
-        :root {
-            --row-h: 40px;
-            --gap: 6px;
-            --step: 46px;              /* row-h + gap */
-            --rows: 4;                  /* 能装的最大条数（3显示 + 1预加载） */
-            --list-h: 178px;            /* rows * step - gap */
-            --pink-soft: rgba(255, 240, 248, 0.75);
-            --pink-hot: rgba(255, 220, 235, 0.92);
-            --pink-line: rgba(255, 182, 213, 0.7);
-            --pink-deep: #ad1457;
-            --pink-dark: #6a1b4a;
-            --ease: cubic-bezier(.4, 0, .2, 1);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; }
-        body {
-            background: transparent;
-            font-family: 'Yozai', 'Microsoft YaHei', sans-serif;
-            overflow: hidden;
-            pointer-events: none;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>点歌队列</title>
+<style>
+    @font-face {
+        font-family: 'Yozai';
+        src: url('/static/fonts/yozai.ttf') format('truetype');
+    }
+    :root {
+        --row: 40px;
+        --step: 46px;
+        --list-h: 178px;          /* 4 条 × step - gap */
+        --pink-soft: rgba(255, 240, 248, .75);
+        --pink-hot:  rgba(255, 220, 235, .92);
+        --pink-line: rgba(255, 182, 213, .7);
+        --pink-deep: #ad1457;
+        --pink-dark: #6a1b4a;
+        --ease: cubic-bezier(.22, 1, .36, 1);  /* ease-out-expo，干脆利落 */
+        --ease-spring: cubic-bezier(.34, 1.56, .64, 1);  /* 弹性，适合进入 */
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+        background: transparent;
+        font-family: 'Yozai', 'Microsoft YaHei', sans-serif;
+        overflow: hidden;
+        pointer-events: none;
+    }
 
-        /* ============ Toast ============ */
-        .toast-wrap {
-            position: fixed;
-            bottom: 120px; left: 50%;
-            transform: translateX(-50%);
-            display: flex; flex-direction: column; gap: 12px;
-            pointer-events: none; z-index: 100;
-        }
-        .toast {
-            opacity: 0;
-            transform: translateY(30px) scale(0.92);
-            transition: opacity .5s ease-out, transform .5s cubic-bezier(.34,1.56,.64,1);
-        }
-        .toast.show { opacity: 1; transform: translateY(0) scale(1); }
-        .toast.hide { opacity: 0; transform: translateY(20px) scale(0.96); transition-duration: .4s; }
+    /* ===== Toast ===== */
+    .toast-wrap {
+        position: fixed; bottom: 120px; left: 50%;
+        transform: translateX(-50%);
+        display: flex; flex-direction: column; gap: 12px;
+        z-index: 100;
+    }
+    .toast {
+        opacity: 0;
+        transform: translateX(40px) scale(.95);
+        transition: opacity .45s ease-out,
+                    transform .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    .toast.show { opacity: 1; transform: translateX(0) scale(1); }
+    .toast.hide { opacity: 0; transform: translateX(40px) scale(.95); transition-duration: .35s; }
 
-        .toast-card {
-            position: relative; width: 380px;
-            padding: 22px 28px 20px;
-            background: linear-gradient(135deg,
-                rgba(255, 235, 245, .96) 0%,
-                rgba(255, 225, 240, .94) 40%,
-                rgba(255, 218, 236, .92) 100%);
-            border-radius: 22px; border: 1.5px solid var(--pink-line);
-            box-shadow: 0 8px 32px rgba(255,130,180,.25),
-                        0 2px 8px rgba(255,130,180,.15),
-                        inset 0 1px 0 rgba(255,255,255,.8);
-            overflow: hidden;
-        }
-        .toast-card::before {
-            content: ''; position: absolute; top: -40px; right: -40px;
-            width: 120px; height: 120px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,182,213,.6) 0%, transparent 70%);
-        }
-        .toast-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .toast-icon { font-size: 22px; line-height: 1; }
-        .toast-label { font-size: 15px; color: #c2185b; font-weight: 500; letter-spacing: 1px; }
-        .toast-user { font-size: 15px; color: #880e4f; font-weight: 600;
-            max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .toast-song { font-size: 32px; font-weight: 700; color: var(--pink-dark); text-align: center;
-            padding: 14px 0 12px; line-height: 1.2; letter-spacing: 2px;
-            text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-        .toast-trigger { text-align: center; font-size: 13px; color: var(--pink-deep); opacity: .7; }
+    .toast-card {
+        position: relative; width: 380px;
+        padding: 22px 28px 20px;
+        background: linear-gradient(135deg,
+            rgba(255,235,245,.96) 0%,
+            rgba(255,225,240,.94) 40%,
+            rgba(255,218,236,.92) 100%);
+        border-radius: 22px; border: 1.5px solid var(--pink-line);
+        box-shadow: 0 8px 32px rgba(255,130,180,.25),
+                    0 2px 8px rgba(255,130,180,.15),
+                    inset 0 1px 0 rgba(255,255,255,.8);
+        overflow: hidden;
+    }
+    .toast-card::before {
+        content: ''; position: absolute; top: -40px; right: -40px;
+        width: 120px; height: 120px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,182,213,.6) 0%, transparent 70%);
+    }
+    .toast-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .toast-icon { font-size: 22px; line-height: 1; }
+    .toast-label { font-size: 15px; color: #c2185b; font-weight: 500; letter-spacing: 1px; }
+    .toast-user { font-size: 15px; color: #880e4f; font-weight: 600;
+        max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .toast-song { font-size: 32px; font-weight: 700; color: var(--pink-dark); text-align: center;
+        padding: 14px 0 12px; line-height: 1.2; letter-spacing: 2px;
+        text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+    .toast-trigger { text-align: center; font-size: 13px; color: var(--pink-deep); opacity: .7; }
 
-        /* ============ Queue ============ */
-        .queue {
-            position: fixed; left: 20px; top: 180px;
-            width: 220px; z-index: 50; pointer-events: auto;
-        }
-        .queue-list {
-            position: relative;
-            height: var(--list-h);
-        }
-        .queue-item {
-            position: absolute; left: 0; right: 0;
-            height: var(--row-h);
-            display: flex; align-items: center; gap: 8px;
-            padding: 7px 12px;
-            background: var(--pink-soft);
-            border-radius: 12px;
-            opacity: 0;
-            transform: translateX(20px) scale(.95);
-            will-change: top, opacity, transform;
-            transition: top .35s var(--ease), opacity .35s var(--ease), transform .35s var(--ease);
-        }
-        .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
-        .queue-item.fade-out { opacity: 0; transform: translateX(20px) scale(.95); }
+    /* ===== Queue ===== */
+    .queue {
+        position: fixed; left: 20px; top: 180px;
+        width: 220px; pointer-events: auto; z-index: 50;
+    }
+    .queue-list { position: relative; height: var(--list-h); }
 
-        .queue-item.current {
-            background: var(--pink-hot);
-            animation: breathe 2.2s ease-in-out infinite;
-        }
-        @keyframes breathe {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.35); }
-            50%      { box-shadow: 0 0 0 4px rgba(255,77,139,0); }
-        }
+    .queue-item {
+        position: absolute; left: 0; right: 0;
+        height: var(--row);
+        display: flex; align-items: center; gap: 8px;
+        padding: 7px 12px;
+        background: var(--pink-soft);
+        border-radius: 12px;
+        opacity: 0;
+        transform: translateX(20px) scale(.98);
+        transition: top .42s var(--ease) calc(var(--i, 0) * 25ms),
+                    opacity .28s ease-out,
+                    transform .3s var(--ease-spring);
+        --i: 0;
+        will-change: top, opacity, transform;
+    }
+    .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
+    .queue-item.fade-out {
+        opacity: 0;
+        transform: translateX(30px) scale(.92) rotateZ(-4deg);
+        transition: opacity .32s ease-in,
+                    transform .32s ease-in,
+                    top .32s ease-in !important;
+    }
+    .queue-item.current {
+        background: var(--pink-hot);
+        animation: breathe 2.4s ease-in-out infinite;
+    }
+    @keyframes breathe {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.35); }
+        50%      { box-shadow: 0 0 0 5px rgba(255,77,139,0); }
+    }
+    .q-song { flex: 1; min-width: 0;
+        font-size: 14px; font-weight: 600; color: #3d1027;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+    .q-user { font-size: 11px; color: #7a2a4a; opacity: .7; flex-shrink: 0; }
 
-        .q-song { flex: 1; min-width: 0;
-            font-size: 14px; font-weight: 600; color: #3d1027;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-            text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-        .q-user { font-size: 11px; color: #7a2a4a; opacity: .7; flex-shrink: 0; }
-        .queue-empty { position: absolute; top: 0; left: 0; right: 0;
-            text-align: center; padding: 8px 10px;
-            font-size: 13px; color: #c2185b; opacity: .7;
-            background: rgba(255,255,255,.45); border-radius: 10px; }
-        .queue-more { position: absolute; left: 0; right: 0; top: var(--list-h);
-            text-align: center; font-size: 11px; color: var(--pink-deep); opacity: .55;
-            padding: 2px 0; }
-    </style>
+    .queue-empty {
+        position: absolute; top: 0; left: 0; right: 0;
+        text-align: center; padding: 8px 10px;
+        font-size: 13px; color: #c2185b; opacity: .7;
+        background: rgba(255,255,255,.45); border-radius: 10px;
+    }
+    .queue-more {
+        position: absolute; left: 0; right: 0; top: var(--list-h);
+        text-align: center; font-size: 11px; color: var(--pink-deep); opacity: .55;
+        padding: 2px 0;
+        transition: opacity .3s ease-out;
+    }
+</style>
 </head>
 <body>
 
-    <div class="toast-wrap" id="toastWrap"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+<div class="queue">
+    <div class="queue-list" id="queueList"></div>
+    <div class="queue-more" id="queueMore" style="display:none"></div>
+</div>
 
-    <div class="queue">
-        <div class="queue-list" id="queueList"></div>
-        <div class="queue-more" id="queueMore" style="display:none"></div>
-    </div>
+<script>
+(function() {
+    // ===== 配置 =====
+    const POLL = 1500;
+    const MAX_VISIBLE = 3;
+    const STEP = 46;
+    const FADE_MS = 320;  // 必须和 CSS fade-out transition 时长一致
+    const TRIGGER_LABEL = { '主播': '', '盲盒': '盲盒续杯', '免费': '免费次数' };
 
-    <script>
-        // ============ 配置 ============
-        const POLL = 1500;
-        const TOAST_DURATION = 4000;
-        const MAX_VISIBLE = 3;
-        const ROW_STEP = 46;  // 必须和 CSS --step 一致
-        const FADE_MS = 360;
+    // ===== 路由 =====
+    const p = location.pathname.split('/').filter(Boolean);
+    const ROOM_ID = p[1], PLUGIN = p[3];
+    if (!ROOM_ID || !PLUGIN) return;
 
-        const TRIGGER_LABEL = { '主播': '', '盲盒': '盲盒续杯', '免费': '免费次数' };
+    // ===== 状态 =====
+    let queue = [];
+    let knownIds = new Set();
+    let fadingId = null;
+    let removedSet = new Set();
+    let lastRemoteQueue = [];
 
-        // ============ 路由 ============
-        const _parts = location.pathname.split('/').filter(Boolean);
-        const ROOM_ID = _parts[1] || null;
-        const PLUGIN_NAME = _parts[3] || null;
-        if (!ROOM_ID || !PLUGIN_NAME) return;
+    const idToEl = new Map();
+    const $list = document.getElementById('queueList');
+    const $more = document.getElementById('queueMore');
+    const $toastWrap = document.getElementById('toastWrap');
+    let $empty = null;
 
-        // ============ 状态 ============
-        let queue = [];
-        let knownIds = new Set();
-        let fadingIds = new Set();
-        let removedIds = [];
-        let lastRemoteQueue = [];
+    // ===== API =====
+    const fetchState = () =>
+        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/state`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => d && d.success ? d.state : null)
+            .catch(() => null);
+    const saveView = () =>
+        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/state`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'queue_view', value: [...removedSet] })
+        }).catch(() => {});
+    const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
-        const idToEl = new Map();
+    // ===== Toast =====
+    function showToast(item) {
+        if (knownIds.has(item.id)) return;
+        knownIds.add(item.id);
+        const el = document.createElement('div');
+        el.className = 'toast';
+        const t = TRIGGER_LABEL[item.trigger] || '';
+        el.innerHTML = `
+            <div class="toast-card">
+                <div class="toast-top">
+                    <span class="toast-icon">🎵</span>
+                    <span class="toast-user">${esc(item.user)}</span>
+                    <span class="toast-label">点了一首</span>
+                </div>
+                <div class="toast-song">${esc(item.song)}</div>
+                ${t ? `<div class="toast-trigger">${t}</div>` : ''}
+            </div>`;
+        $toastWrap.appendChild(el);
+        requestAnimationFrame(() => el.classList.add('show'));
+        setTimeout(() => {
+            el.classList.remove('show');
+            el.classList.add('hide');
+            setTimeout(() => el.remove(), 500);
+        }, 4000);
+    }
 
-        const $list = document.getElementById('queueList');
-        const $more = document.getElementById('queueMore');
-        const $toastWrap = document.getElementById('toastWrap');
-        let $empty = null;
+    // ===== 渲染 =====
+    function getOrCreateEl(item) {
+        let el = idToEl.get(item.id);
+        if (el) return el;
+        el = document.createElement('div');
+        el.className = 'queue-item';
+        el.dataset.id = item.id;
+        el.style.top = '1000px';
+        el.innerHTML = '<div class="q-song"></div><div class="q-user"></div>';
+        el.querySelector('.q-song').textContent = item.song;
+        el.querySelector('.q-user').textContent = item.user;
+        $list.appendChild(el);
+        idToEl.set(item.id, el);
+        return el;
+    }
 
-        function esc(s) {
-            const d = document.createElement('div');
-            d.textContent = s;
-            return d.innerHTML;
+    function renderQueue() {
+        // 1. active = queue 里没被 removed 的
+        const active = [];
+        for (const q of queue) if (!removedSet.has(q.id)) active.push(q);
+        const firstId = active[0]?.id;
+
+        // 2. renderList = 要显示哪些
+        //    fade-out 期间多预渲染 1 条（在下面等着）
+        let renderList = fadingId ? active.slice(0, MAX_VISIBLE + 1)
+                                  : active.slice(0, MAX_VISIBLE);
+
+        // 3. queue-more：永远贴在 queue-list 底部
+        if (active.length > MAX_VISIBLE) {
+            $more.textContent = `...还有 ${active.length - MAX_VISIBLE} 首待播`;
+            $more.style.display = '';
+            $more.style.opacity = '1';
+        } else {
+            $more.style.opacity = '0';
+            // 等 fade-out 过渡完再隐藏，不然会闪
+            setTimeout(() => { if (active.length <= MAX_VISIBLE) $more.style.display = 'none'; }, 400);
         }
-        const fetchState = () =>
-            fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`)
-                .then(r => r.ok ? r.json() : null)
-                .then(d => d && d.success ? d.state : null)
-                .catch(() => null);
-        const saveView = (ids) =>
-            fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'queue_view', value: ids })
-            }).catch(() => {});
 
-        // ============ Toast ============
-        function showToast(item) {
-            if (knownIds.has(item.id)) return;
-            knownIds.add(item.id);
-            const el = document.createElement('div');
-            el.className = 'toast';
-            const triggerText = TRIGGER_LABEL[item.trigger] || '';
-            el.innerHTML = `
-                <div class="toast-card">
-                    <div class="toast-top">
-                        <span class="toast-icon">🎵</span>
-                        <span class="toast-user">${esc(item.user)}</span>
-                        <span class="toast-label">点了一首</span>
-                    </div>
-                    <div class="toast-song">${esc(item.song)}</div>
-                    ${triggerText ? `<div class="toast-trigger">${triggerText}</div>` : ''}
-                </div>`;
-            $toastWrap.appendChild(el);
-            requestAnimationFrame(() => el.classList.add('show'));
-            setTimeout(() => {
-                el.classList.remove('show');
-                el.classList.add('hide');
-                setTimeout(() => el.remove(), 500);
-            }, TOAST_DURATION);
-        }
-
-        // ============ 渲染 ============
-        function getOrCreateEl(item) {
-            let el = idToEl.get(item.id);
-            if (el) return el;
-            el = document.createElement('div');
-            el.className = 'queue-item';
-            el.dataset.id = item.id;
-            el.style.top = '1000px';
-            el.innerHTML = '<div class="q-song"></div><div class="q-user"></div>';
-            el.querySelector('.q-song').textContent = item.song;
-            el.querySelector('.q-user').textContent = item.user;
-            $list.appendChild(el);
-            idToEl.set(item.id, el);
-            return el;
-        }
-
-        function renderQueue() {
-            const removedSet = new Set(removedIds);
-
-            // 一次遍历：active 数组 + id Map + 首条
-            const active = [];
-            for (const q of queue) if (!removedSet.has(q.id)) active.push(q);
-            const firstId = active[0]?.id;
-
-            // renderList
-            const hasFading = fadingIds.size > 0;
-            const renderList = active.slice(0, hasFading ? MAX_VISIBLE + 1 : MAX_VISIBLE);
-            fadingIds.forEach(id => {
-                if (!active.some(q => q.id === id)) {
-                    const item = queue.find(q => q.id === id);
-                    if (item) renderList.unshift(item);
-                }
-            });
-
-            // queue-more
-            if (active.length > MAX_VISIBLE) {
-                $more.textContent = `...还有 ${active.length - MAX_VISIBLE} 首待播`;
-                $more.style.display = '';
-            } else {
-                $more.style.display = 'none';
-            }
-
-            // 空队列
-            if (renderList.length === 0) {
-                idToEl.forEach(el => {
-                    el.style.top = '1000px';
-                    el.classList.remove('show', 'fade-out', 'current');
-                });
-                if (!$empty) {
-                    $empty = Object.assign(document.createElement('div'), {
-                        className: 'queue-empty', textContent: '等待点歌~ 🎶'
-                    });
-                    $list.appendChild($empty);
-                }
-                return;
-            }
-            if ($empty?.parentNode) { $empty.remove(); $empty = null; }
-
-            // 主循环
-            const usedIds = new Set(renderList.map(q => q.id));
-            renderList.forEach((item, i) => {
-                const el = getOrCreateEl(item);
-                const fading = fadingIds.has(item.id);
-                el.style.top = (i * ROW_STEP) + 'px';
-                el.classList.toggle('fade-out', fading);
-                el.classList.toggle('current', !fading && item.id === firstId);
-                el.classList.add('show');
-            });
-
-            // 清理：移走没用的 + 销毁真没了的
-            const queueIds = new Set(queue.map(q => q.id));
-            for (const id of idToEl.keys()) {
-                if (usedIds.has(id)) continue;
-                const el = idToEl.get(id);
+        // 4. 空队列
+        if (renderList.length === 0) {
+            idToEl.forEach(el => {
                 el.style.top = '1000px';
-                el.classList.remove('fade-out', 'current');
-                if (!queueIds.has(id) && !removedSet.has(id)) {
-                    el.remove();
-                    idToEl.delete(id);
-                }
-            }
-        }
-
-        // ============ 控制 ============
-        async function doNext() {
-            const target = queue.find(q => !removedIds.includes(q.id));
-            if (!target) return;
-
-            fadingIds.add(target.id);
-            renderQueue();
-
-            setTimeout(async () => {
-                fadingIds.delete(target.id);
-                const idx = queue.findIndex(q => q.id === target.id);
-                if (idx >= 0) queue.splice(idx, 1);
-                removedIds.push(target.id);
-                knownIds.add(target.id);
-                renderQueue();
-                await saveView(removedIds);
-            }, FADE_MS);
-        }
-
-        async function doUndo() {
-            if (!removedIds.length) return;
-            const id = removedIds.pop();
-            const restored = lastRemoteQueue.find(q => q.id === id);
-            if (restored && !queue.some(q => q.id === id)) queue.unshift(restored);
-            knownIds.add(id);
-            renderQueue();
-            await saveView(removedIds);
-        }
-
-        // ============ 轮询 ============
-        async function poll() {
-            try {
-                const state = await fetchState();
-                if (!state) return;
-
-                const remoteQueue = Array.isArray(state.queue) ? state.queue : [];
-                lastRemoteQueue = remoteQueue;
-                const remoteRemoved = Array.isArray(state.queue_view) ? state.queue_view : [];
-
-                const remoteIds = new Set(remoteQueue.map(q => q.id));
-                const removedSet = new Set([...remoteRemoved, ...removedIds]);
-
-                let changed = false;
-                const myVisibleIds = new Set(queue.map(q => q.id));
-
-                // 一次遍历：新加的加入 + toast + 重建 knownIds
-                const newKnown = new Set();
-                for (const item of remoteQueue) {
-                    if (removedSet.has(item.id)) continue;
-                    newKnown.add(item.id);
-                    if (!myVisibleIds.has(item.id)) {
-                        queue.push(item);
-                        changed = true;
-                    }
-                    if (!knownIds.has(item.id)) showToast(item);
-                }
-                knownIds = newKnown;
-
-                // 插件砍了的 → 同步移除
-                const beforeLen = queue.length;
-                queue = queue.filter(q => remoteIds.has(q.id));
-                if (queue.length !== beforeLen) changed = true;
-
-                removedIds = [...removedSet];
-                if (changed) renderQueue();
-            } catch (e) {
-                console.error('[点歌队列] 轮询失败:', e);
-            }
-        }
-
-        // ============ 启动 ============
-        (async () => {
-            const state = await fetchState();
-            const remoteQueue = (state && Array.isArray(state.queue)) ? state.queue : [];
-            const remoteRemoved = (state && Array.isArray(state.queue_view)) ? state.queue_view : [];
-
-            removedIds = [...remoteRemoved];
-            const removedSet = new Set(removedIds);
-            queue = remoteQueue.filter(q => !removedSet.has(q.id));
-            knownIds = new Set(queue.map(q => q.id));
-            renderQueue();
-
-            document.addEventListener('keydown', e => {
-                const tag = (e.target && e.target.tagName || '').toLowerCase();
-                if (tag === 'input' || tag === 'textarea') return;
-                if (e.key === ']' && !e.ctrlKey) { e.preventDefault(); doNext(); }
-                else if (e.key === '[' && !e.ctrlKey) { e.preventDefault(); doUndo(); }
+                el.classList.remove('show', 'fade-out', 'current');
             });
+            if (!$empty) {
+                $empty = Object.assign(document.createElement('div'), {
+                    className: 'queue-empty', textContent: '等待点歌~ 🎶'
+                });
+                $list.appendChild($empty);
+            }
+            return;
+        }
+        if ($empty?.parentNode) { $empty.remove(); $empty = null; }
 
-            setInterval(poll, POLL);
-        })();
-    </script>
+        // 5. 主循环：renderList → 更新/创建/移动
+        //    ★ getOrCreateEl 设 top=1000px，紧接着这里设目标 top
+        //    浏览器合并同 tick 的 style 赋值 → 不触发 transition → 新条目安静出现
+        const usedIds = new Set(renderList.map(q => q.id));
+        renderList.forEach((item, i) => {
+            const el = getOrCreateEl(item);
+            const isFading = item.id === fadingId;
+            el.style.top = (i * STEP) + 'px';
+            el.style.setProperty('--i', i);  // 瀑布层叠延迟
+            el.classList.toggle('fade-out', isFading);
+            el.classList.toggle('current', !isFading && item.id === firstId);
+            el.classList.add('show');
+        });
+
+        // 6. 不在 renderList 里的 → 移走；真没了 → 销毁
+        const queueIds = new Set(queue.map(q => q.id));
+        for (const [id, el] of idToEl) {
+            if (usedIds.has(id)) continue;
+            el.style.top = '1000px';
+            el.classList.remove('fade-out', 'current');
+            if (!queueIds.has(id) && !removedSet.has(id)) {
+                el.remove();
+                idToEl.delete(id);
+            }
+        }
+    }
+
+    // ===== 控制 =====
+    async function doNext() {
+        if (fadingId) return;  // 防重入
+        const target = queue.find(q => !removedSet.has(q.id));
+        if (!target) return;
+
+        fadingId = target.id;
+        renderQueue();
+
+        setTimeout(async () => {
+            fadingId = null;
+            const idx = queue.findIndex(q => q.id === target.id);
+            if (idx >= 0) queue.splice(idx, 1);
+            removedSet.add(target.id);
+            knownIds.add(target.id);
+            renderQueue();
+            await saveView();
+        }, FADE_MS);
+    }
+
+    async function doUndo() {
+        if (!removedSet.size) return;
+        // 随便取一个 removedId 恢复
+        const id = [...removedSet][removedSet.size - 1];
+        removedSet.delete(id);
+        const restored = lastRemoteQueue.find(q => q.id === id);
+        if (restored && !queue.some(q => q.id === id)) queue.unshift(restored);
+        knownIds.add(id);
+        renderQueue();
+        await saveView();
+    }
+
+    // ===== 轮询 =====
+    async function poll() {
+        try {
+            const state = await fetchState();
+            if (!state) return;
+
+            const remote = Array.isArray(state.queue) ? state.queue : [];
+            lastRemoteQueue = remote;
+            const remoteRemoved = Array.isArray(state.queue_view) ? state.queue_view : [];
+
+            const remoteIds = new Set(remote.map(q => q.id));
+            const mergedRemoved = new Set([...remoteRemoved, ...removedSet]);
+
+            let changed = false;
+            const myIds = new Set(queue.map(q => q.id));
+            const newKnown = new Set();
+
+            for (const item of remote) {
+                if (mergedRemoved.has(item.id)) continue;
+                newKnown.add(item.id);
+                if (!myIds.has(item.id)) { queue.push(item); changed = true; }
+                if (!knownIds.has(item.id)) showToast(item);
+            }
+
+            const before = queue.length;
+            queue = queue.filter(q => remoteIds.has(q.id));
+            if (queue.length !== before) changed = true;
+
+            removedSet = mergedRemoved;
+
+            // 清理：removedSet 里的 id 不在任何地方了 → 丢弃
+            if (removedSet.size) {
+                const remoteLiveIds = new Set([...remoteIds, ...remoteRemoved]);
+                for (const id of removedSet) {
+                    if (!remoteLiveIds.has(id)) removedSet.delete(id);
+                }
+            }
+
+            knownIds = newKnown;
+            // fade-out 期间跳过 renderQueue：防止 poll 打断 CSS 动画
+            if (changed && !fadingId) renderQueue();
+        } catch (e) { console.error('[点歌] poll:', e); }
+    }
+
+    // ===== 启动 =====
+    (async function init() {
+        const state = await fetchState();
+        const remote = (state && Array.isArray(state.queue)) ? state.queue : [];
+        const remoteRemoved = (state && Array.isArray(state.queue_view)) ? state.queue_view : [];
+
+        removedSet = new Set(remoteRemoved);
+        queue = remote.filter(q => !removedSet.has(q.id));
+        knownIds = new Set(queue.map(q => q.id));
+        renderQueue();
+
+        document.addEventListener('keydown', e => {
+            const tag = (e.target && e.target.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea') return;
+            if (e.key === ']' && !e.ctrlKey) { e.preventDefault(); doNext(); }
+            else if (e.key === '[' && !e.ctrlKey) { e.preventDefault(); doUndo(); }
+        });
+
+        setInterval(poll, POLL);
+    })();
+})();
+</script>
 </body>
 </html>
