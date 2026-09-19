@@ -90,10 +90,9 @@
         border-radius: 12px;
         opacity: 0;
         transform: translateX(20px) scale(.98);
-        transition: top .42s var(--ease) calc(var(--i, 0) * 25ms),
+        transition: top .42s var(--ease),
                     opacity .28s ease-out,
                     transform .3s var(--ease-spring);
-        --i: 0;
         will-change: top, opacity, transform;
     }
     .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
@@ -228,10 +227,10 @@
         for (const q of queue) if (!removedSet.has(q.id)) active.push(q);
         const firstId = active[0]?.id;
 
-        // 2. renderList = 要显示哪些
-        //    fade-out 期间多预渲染 1 条（在下面等着）
-        let renderList = fadingId ? active.slice(0, MAX_VISIBLE + 1)
-                                  : active.slice(0, MAX_VISIBLE);
+        // 2. renderList = MAX_VISIBLE 条（不预渲染！）
+        //    fade-out 期间只显示 MAX_VISIBLE 条，不提前渲染下面的
+        //    这样 fade-out 结束后新条目第一次创建，同 tick 合并 top 不触发 transition
+        const renderList = active.slice(0, MAX_VISIBLE);
 
         // 3. queue-more：永远贴在 queue-list 底部
         if (active.length > MAX_VISIBLE) {
@@ -240,7 +239,6 @@
             $more.style.opacity = '1';
         } else {
             $more.style.opacity = '0';
-            // 等 fade-out 过渡完再隐藏，不然会闪
             setTimeout(() => { if (active.length <= MAX_VISIBLE) $more.style.display = 'none'; }, 400);
         }
 
@@ -268,7 +266,6 @@
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
             el.style.top = (i * STEP) + 'px';
-            el.style.setProperty('--i', i);  // 瀑布层叠延迟
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', !isFading && item.id === firstId);
             el.classList.add('show');
