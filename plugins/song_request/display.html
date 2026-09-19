@@ -213,7 +213,6 @@
         el = document.createElement('div');
         el.className = 'queue-item';
         el.dataset.id = item.id;
-        el.style.top = '1000px';
         el.innerHTML = '<div class="q-song"></div><div class="q-user"></div>';
         el.querySelector('.q-song').textContent = item.song;
         el.querySelector('.q-user').textContent = item.user;
@@ -247,7 +246,7 @@
         // 4. 空队列
         if (renderList.length === 0) {
             idToEl.forEach(el => {
-                el.style.top = '1000px';
+                el.style.display = 'none';
                 el.classList.remove('show', 'fade-out', 'current');
             });
             if (!$empty) {
@@ -261,24 +260,25 @@
         if ($empty?.parentNode) { $empty.remove(); $empty = null; }
 
         // 5. 主循环：renderList → 更新/创建/移动
-        //    ★ getOrCreateEl 设 top=1000px，紧接着这里设目标 top
-        //    浏览器合并同 tick 的 style 赋值 → 不触发 transition → 新条目安静出现
+        //    ★ 新条目直接创建 + 设对 top，opacity 0 靠 CSS 默认值隐藏
+        //    加 .show 后 opacity 1 + transform 归零 → 安静显现
         const usedIds = new Set(renderList.map(q => q.id));
         renderList.forEach((item, i) => {
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
+            el.style.display = '';
             el.style.top = (i * STEP) + 'px';
-            el.style.setProperty('--i', i);  // 瀑布层叠延迟
+            el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', !isFading && item.id === firstId);
             el.classList.add('show');
         });
 
-        // 6. 不在 renderList 里的 → 移走；真没了 → 销毁
+        // 6. 不在 renderList 里的 → 隐藏；真没了 → 销毁
         const queueIds = new Set(queue.map(q => q.id));
         for (const [id, el] of idToEl) {
             if (usedIds.has(id)) continue;
-            el.style.top = '1000px';
+            el.style.display = 'none';
             el.classList.remove('fade-out', 'current');
             if (!queueIds.has(id) && !removedSet.has(id)) {
                 el.remove();
