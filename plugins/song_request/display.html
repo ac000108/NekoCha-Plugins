@@ -10,9 +10,9 @@
         src: url('/static/fonts/yozai.ttf') format('truetype');
     }
     :root {
-        --row: 40px;
-        --step: 46px;
-        --list-h: 132px;           /* 3 条 × 40 + 2 × 6 gap */
+        --row: 34px;
+        --step: 40px;
+        --list-h: 154px;           /* 4 条 × 34 + 3 × 6 gap */
         --pink-soft: rgba(255, 240, 248, .75);
         --pink-hot:  rgba(255, 220, 235, .92);
         --pink-line: rgba(255, 182, 213, .7);
@@ -83,13 +83,13 @@
     .queue-item {
         position: absolute; left: 0; right: 0;
         height: var(--row);
-        display: flex; align-items: center; gap: 8px;
-        padding: 7px 12px;
+        display: flex; align-items: center; gap: 6px;
+        padding: 5px 10px;
         background: var(--pink-soft);
-        border-radius: 12px;
+        border-radius: 10px;
         opacity: 0;
         transform: translateX(8px) scale(.99);
-        transition: top .4s var(--ease) calc(var(--i, 0) * 15ms),
+        transition: top .4s var(--ease) calc(var(--i, 0) * 12ms),
                     opacity .25s ease-out,
                     transform .28s var(--ease);
         --i: 0;
@@ -111,12 +111,22 @@
         0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.3); }
         50%      { box-shadow: 0 0 0 3px rgba(255,77,139,0); }
     }
+    .queue-item.tail { opacity: .65; }
+    .queue-item.tail .q-song { color: #7a2a4a; }
+    .queue-item.tail .q-user { display: none; }
+    .queue-item.tail::before {
+        content: ''; position: absolute; left: 10px; right: 10px; top: 0;
+        height: 1px;
+        background: repeating-linear-gradient(90deg, var(--pink-deep) 0, var(--pink-deep) 4px, transparent 4px, transparent 8px);
+        opacity: .4;
+    }
+
     .q-num {
         flex-shrink: 0;
-        width: 18px; height: 18px;
+        width: 16px; height: 16px;
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 11px; font-weight: 700; color: white;
+        font-size: 10px; font-weight: 700; color: white;
         background: #e891af;
         line-height: 1;
         transition: box-shadow .2s;
@@ -127,13 +137,13 @@
     }
     @keyframes pulse {
         0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.5); }
-        50%      { box-shadow: 0 0 0 4px rgba(255,77,139,0); }
+        50%      { box-shadow: 0 0 0 3px rgba(255,77,139,0); }
     }
     .q-song { flex: 1; min-width: 0;
-        font-size: 14px; font-weight: 600; color: #3d1027;
+        font-size: 13px; font-weight: 600; color: #3d1027;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-    .q-user { font-size: 11px; color: #7a2a4a; opacity: .7; flex-shrink: 0; }
+    .q-user { font-size: 10px; color: #7a2a4a; opacity: .7; flex-shrink: 0; }
 
     .queue-empty {
         position: absolute; top: 0; left: 0; right: 0;
@@ -153,8 +163,8 @@
 <script>
 (function() {
     const POLL = 1500;
-    const MAX_VISIBLE = 3;
-    const STEP = 46;
+    const MAX_VISIBLE = 4;
+    const STEP = 40;
     const FADE_MS = 280;
     const TRIGGER_LABEL = { '主播': '', '盲盒': '盲盒续杯', '免费': '免费次数' };
 
@@ -228,14 +238,25 @@
         const active = [];
         for (const q of queue) if (!removedSet.has(q.id)) active.push(q);
         const firstId = active[0]?.id;
+        const total = active.length;
+        const truncated = total > MAX_VISIBLE;
 
-        let renderList = fadingId ? active.slice(0, MAX_VISIBLE + 1)
-                                  : active.slice(0, MAX_VISIBLE);
+        // 构造 renderList
+        // 截断模式: 前 MAX_VISIBLE-1 条 + 最后一条
+        // 正常模式: 前 MAX_VISIBLE 条
+        let renderList;
+        if (truncated) {
+            renderList = [...active.slice(0, MAX_VISIBLE - 1), active[total - 1]];
+        } else if (fadingId) {
+            renderList = active.slice(0, MAX_VISIBLE + 1);
+        } else {
+            renderList = active.slice(0, MAX_VISIBLE);
+        }
 
         if (renderList.length === 0) {
             idToEl.forEach(el => {
                 el.style.display = 'none';
-                el.classList.remove('show', 'fade-out', 'current');
+                el.classList.remove('show', 'fade-out', 'current', 'tail');
             });
             if (!$empty) {
                 $empty = Object.assign(document.createElement('div'), {
@@ -248,28 +269,29 @@
         if ($empty?.parentNode) { $empty.remove(); $empty = null; }
 
         const usedIds = new Set(renderList.map(q => q.id));
-        const preloading = fadingId ? active.length > MAX_VISIBLE : false;
-        const visCount = preloading ? MAX_VISIBLE : renderList.length;
-        const lastVisIdx = visCount - 1;
+        // preloading: fade-out 期间多渲染了一条非截断条目
+        const preloading = fadingId && !truncated && total > MAX_VISIBLE;
 
         renderList.forEach((item, i) => {
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
             const isFirst = !isFading && item.id === firstId;
+            // tail: 截断模式下最后一条（显示总数，虚线暗示中间省略）
+            const isTail = truncated && i === renderList.length - 1 && !isFading;
             el.style.display = '';
             el.style.top = (i * STEP) + 'px';
             el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', isFirst);
-            // 编号逻辑：
-            //   当前唱的 → ▶
-            //   最后一条可见 + 队列 > 3 → 显示总数（让用户知道还有多少）
-            //   其他 → index+1
+            el.classList.toggle('tail', isTail);
+            // 编号
             let num;
             if (isFirst) num = '▶';
-            else if (i === lastVisIdx && active.length > MAX_VISIBLE) num = active.length;
-            else num = i + 1;
+            else if (isTail) num = total;          // 截断尾条 = 总数
+            else if (truncated) num = i + 1;       // 截断但不是尾条 = 位置号
+            else num = i + 1;                      // 正常 = 位置号
             el.querySelector('.q-num').textContent = num;
+            // show: 预加载条目不显示
             if (!preloading || i < MAX_VISIBLE) {
                 el.classList.add('show');
             } else {
@@ -281,7 +303,7 @@
         for (const [id, el] of idToEl) {
             if (usedIds.has(id)) continue;
             el.style.display = 'none';
-            el.classList.remove('fade-out', 'current');
+            el.classList.remove('fade-out', 'current', 'tail');
             if (!queueIds.has(id) && !removedSet.has(id)) {
                 el.remove();
                 idToEl.delete(id);
