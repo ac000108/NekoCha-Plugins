@@ -84,30 +84,30 @@
             position: fixed;
             left: 20px; top: 180px;
             width: 220px;
-            z-index: 50; display: flex; flex-direction: column;
+            z-index: 50;
             pointer-events: auto;
         }
         .queue-list {
-            display: flex; flex-direction: column;
+            display: flex;
+            flex-direction: column;
             gap: 6px;
-            overflow: hidden;
-            transition: max-height 0.35s ease;
         }
         .queue-item {
-            display: flex; align-items: center; gap: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: rgba(255, 240, 248, 0.75);
             border-radius: 12px;
-            /* 初始状态：从右边滑入，和 fade-out 对称向右边滑出 */
             opacity: 0;
             transform: translateX(20px) scale(0.95);
             max-height: 0;
             padding: 0 12px;
+            overflow: hidden;
             transition:
                 opacity 0.35s ease,
                 transform 0.35s ease,
                 max-height 0.35s ease,
                 padding 0.35s ease;
-            overflow: hidden;
         }
         .queue-item.show {
             opacity: 1;
@@ -253,44 +253,40 @@
         function renderQueue() {
             const removedSet = new Set(removedIds);
 
-            const hasFading = fadingIds.size > 0;
             const MAX_VISIBLE = 3;
-            const take = hasFading ? MAX_VISIBLE + 1 : MAX_VISIBLE;
-            const visible = queue.filter(q => {
-                if (removedSet.has(q.id) && !fadingIds.has(q.id)) return false;
-                return true;
-            }).slice(0, take);
+            const visible = queue.filter(q => !removedSet.has(q.id)).slice(0, MAX_VISIBLE);
+
+            // fade-out 中的那条要保留在队头触发折叠动画
+            fadingIds.forEach(id => {
+                const item = queue.find(q => q.id === id);
+                if (item && !visible.some(v => v.id === id)) {
+                    visible.unshift(item);
+                }
+            });
 
             if (visible.length === 0) {
-                if ($list.querySelectorAll('.queue-item').length === 0) {
-                    $list.innerHTML = '';
-                    $list.appendChild($empty);
-                }
+                $list.innerHTML = '';
+                $list.appendChild($empty);
                 return;
             }
 
-            const firstRender = $list.children.length === 0 || $empty.parentNode;
-
-            // 防重复：已有 DOM 的 id 序列和新 visible 完全一样就跳过重建
+            // 防重复：DOM 里的 id 序列和新 visible 完全一样 → 只 toggle 类
             const existingIds = [...$list.querySelectorAll('.queue-item')].map(el => parseInt(el.dataset.id));
             const newIds = visible.map(q => q.id);
-            if (!firstRender && existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i])) {
-                $list.querySelectorAll('.queue-item').forEach((el, i) => {
+            if (existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i])) {
+                const items = $list.querySelectorAll('.queue-item');
+                items.forEach((el, i) => {
                     const item = visible[i];
                     const fading = fadingIds.has(item.id);
+                    const isFirst = !fading && queue.filter(q => !removedSet.has(q.id)).slice(0, MAX_VISIBLE)[0]?.id === item.id;
                     el.classList.toggle('fade-out', fading);
+                    el.classList.toggle('current', !!isFirst);
                     if (!el.classList.contains('show')) el.classList.add('show');
                 });
-                // 即使 DOM 没变，高度也可能变（比如 fade-out 从 3→4 条）
-                const maxItems = Math.min(visible.length, hasFading ? 4 : MAX_VISIBLE);
-                $list.style.maxHeight = (maxItems * 40 + Math.max(maxItems - 1, 0) * 6) + 'px';
                 return;
             }
 
-            // 动态算高度：可见条数 × 40px + gap × 6px
-            const maxItems = Math.min(visible.length, hasFading ? 4 : MAX_VISIBLE);
-            $list.style.maxHeight = (maxItems * 40 + Math.max(maxItems - 1, 0) * 6) + 'px';
-
+            // 重建 DOM
             let displayIdx = -1;
             $list.innerHTML = visible.map((item) => {
                 const fading = fadingIds.has(item.id);
@@ -299,54 +295,59 @@
                 const num = isFirst ? '▶' : (fading ? '' : displayIdx);
                 const cls = ['queue-item'];
                 if (isFirst) cls.push('current');
-                if (fading) cls.push('fade-out');
+                if (fading) cls.push('fade-out', 'show');
                 return `
                 <div class="${cls.join(' ')}" data-id="${item.id}">
                     <div class="q-num">${num}</div>
                     <div class="q-song">${esc(item.song)}</div>
                     <div class="q-user">${esc(item.user)}</div>
                 </div>`;
-            }).join('') + (visible.length > MAX_VISIBLE ? `<div class="queue-more">...还有 ${visible.length - MAX_VISIBLE} 首待播</div>` : '');
+            }).join('') + (queue.filter(q => !removedSet.has(q.id)).length > MAX_VISIBLE
+                ? `<div class="queue-more">...还有 ${queue.filter(q => !removedSet.has(q.id)).length - MAX_VISIBLE} 首待播</div>`
+                : '');
 
-            const items = $list.querySelectorAll('.queue-item');
-            items.forEach((el, i) => {
-                if (el.classList.contains('show') || el.classList.contains('fade-out')) return;
-                setTimeout(() => el.classList.add('show'),
-                    firstRender ? i * 60 : 0);
+            requestAnimationFrame(() => {
+                $list.querySelectorAll('.queue-item:not(.fade-out)').forEach(el => {
+                    el.classList.add('show');
+                });
             });
         }
 
         // ==================== 控制 ====================
 
-        const FADE_MS = 400;
+        const FADE_MS = 350;
         let removedIds = [];
-        let lastRemoteQueue = [];  // 缓存 poll 拉到的完整队列，供 undo 即时恢复
+        let lastRemoteQueue = [];
 
         async function doNext() {
             if (queue.length === 0) return;
-            const removed = queue[0];
-            fadingIds.add(removed.id);
+            const firstVisible = queue.find(q => !removedIds.includes(q.id));
+            if (!firstVisible) return;
+
+            // 给队头加 fade-out 类（CSS 自动开始 350ms 收缩动画）
+            fadingIds.add(firstVisible.id);
             renderQueue();
-            // 动画结束后真正删除
+
+            // 动画结束后真正从数据里删
             setTimeout(async () => {
-                fadingIds.delete(removed.id);
-                queue.shift();
-                removedIds.push(removed.id);
-                knownIds.add(removed.id);   // 防止 undo 时 toast
+                fadingIds.delete(firstVisible.id);
+                const idx = queue.findIndex(q => q.id === firstVisible.id);
+                if (idx >= 0) queue.splice(idx, 1);
+                removedIds.push(firstVisible.id);
+                knownIds.add(firstVisible.id);
                 renderQueue();
                 await _saveAll();
-            }, FADE_MS);
+            }, FADE_MS + 10);  // +10ms 保险
         }
 
         async function doUndo() {
             if (removedIds.length === 0) return;
             const id = removedIds.pop();
-            // 从缓存里找回来，即时恢复
             const restored = lastRemoteQueue.find(q => q.id === id);
             if (restored && !queue.some(q => q.id === id)) {
                 queue.unshift(restored);
             }
-            knownIds.add(id);  // 防止 toast（这条本来就应该在 knownIds 里）
+            knownIds.add(id);
             renderQueue();
             await _saveAll();
         }
