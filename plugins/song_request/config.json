@@ -1,6 +1,6 @@
 {
     "name": "点歌姬",
-    "version": "3.0.17",
+    "version": "3.0.18",
     "description": "观众发送弹幕点歌，支持免费次数、冷却时间、盲盒续杯等权限控制。\n\n【点歌指令】\n随机点歌 → 从歌单随机选一首\n点歌 <歌名> → 指定歌单内歌曲",
     "mode": "off",
     "_group_begin_basic": null,
