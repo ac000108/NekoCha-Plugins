@@ -83,18 +83,17 @@
         /* ============ Queue ============ */
         .queue {
             position: fixed;
-            left: 20px; top: 110px;
+            left: 20px; top: 180px;
             width: 220px;
             z-index: 50; display: flex; flex-direction: column;
             pointer-events: auto;
-            gap: 2px;
+            gap: 6px;
         }
         .queue-item {
             display: flex; align-items: center; gap: 8px;
-            padding: 4px 10px;
-            background: rgba(255, 255, 255, 0.55);
-            backdrop-filter: blur(6px);
-            border-radius: 10px;
+            padding: 7px 12px;
+            background: rgba(255, 240, 248, 0.75);
+            border-radius: 12px;
             opacity: 0; transform: translateX(-8px);
             transition: opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.56,.64,1);
         }
