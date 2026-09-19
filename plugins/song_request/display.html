@@ -169,12 +169,12 @@
 
     // ===== API =====
     const fetchState = () =>
-        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/state`)
+        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/data`)
             .then(r => r.ok ? r.json() : null)
-            .then(d => d && d.success ? d.state : null)
+            .then(d => d && d.success ? d.data : null)
             .catch(() => null);
     const saveView = () =>
-        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/state`, {
+        fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/data`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: 'queue_view', value: [...removedSet] })
         }).catch(() => {});
