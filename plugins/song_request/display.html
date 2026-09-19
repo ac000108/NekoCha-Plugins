@@ -96,34 +96,37 @@
         }
         .queue-item {
             display: flex; align-items: center; gap: 8px;
-            padding: 7px 12px;
             background: rgba(255, 240, 248, 0.75);
             border-radius: 12px;
-            opacity: 0; transform: translateX(-8px);
-            max-height: 40px;
+            /* 初始状态：和 fade-out 完全对称，show 时展开 */
+            opacity: 0;
+            transform: translateX(-20px) scale(0.95);
+            max-height: 0;
+            padding: 0 12px;
             transition:
                 opacity 0.35s ease,
-                transform 0.35s cubic-bezier(.34,1.56,.64,1),
+                transform 0.35s ease,
                 max-height 0.35s ease,
-                padding 0.35s ease,
-                margin 0.35s ease;
+                padding 0.35s ease;
             overflow: hidden;
         }
-        .queue-item.show { opacity: 1; transform: translateX(0); }
+        .queue-item.show {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+            max-height: 40px;
+            padding: 7px 12px;
+        }
         .queue-item.fade-out {
             opacity: 0 !important;
             transform: translateX(20px) scale(0.95) !important;
             max-height: 0 !important;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
-            margin: 0 !important;
-            border-width: 0 !important;
             transition:
                 opacity 0.35s ease,
                 transform 0.35s ease,
                 max-height 0.35s ease,
-                padding 0.35s ease,
-                margin 0.35s ease !important;
+                padding 0.35s ease !important;
         }
 
         .q-num {
