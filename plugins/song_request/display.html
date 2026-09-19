@@ -84,7 +84,7 @@
         .queue {
             position: fixed;
             left: 20px; bottom: 20px;
-            width: 260px; max-height: 420px;
+            width: 260px;
             z-index: 50; display: flex; flex-direction: column;
             pointer-events: auto;
         }
@@ -116,8 +116,8 @@
             padding: 1px 8px; border-radius: 10px; font-weight: 500;
         }
         .queue-list {
-            padding: 6px 0;
-            max-height: 360px; overflow-y: auto;
+            padding: 4px 0;
+            max-height: 140px; overflow: hidden;
         }
         .queue-list::-webkit-scrollbar { width: 4px; }
         .queue-list::-webkit-scrollbar-thumb { background: rgba(255, 150, 190, 0.4); border-radius: 2px; }
@@ -131,9 +131,7 @@
         .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
         .queue-item.fade-out {
             opacity: 0 !important; transform: translateX(30px) scale(0.92) !important;
-            max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important;
-            margin: 0 !important; overflow: hidden !important; pointer-events: none !important;
-            transition: opacity 0.4s ease, transform 0.4s ease, max-height 0.4s ease, padding 0.4s ease !important;
+            transition: opacity 0.4s ease, transform 0.4s ease !important;
         }
 
         /* 当前唱的 —— 呼吸光晕 */
@@ -265,10 +263,11 @@
             const removedSet = new Set(removedIds);
 
             // fading 的条目即使已被 removedIds 标记，也要渲染出来（为了动画）
+            const MAX_VISIBLE = 3;
             const visible = queue.filter(q => {
                 if (removedSet.has(q.id) && !fadingIds.has(q.id)) return false;
                 return true;
-            });
+            }).slice(0, MAX_VISIBLE);
 
             // fade-out 时也要把它算"当前项"的位置
             const fadeIdx = visible.findIndex(q => fadingIds.has(q.id));
