@@ -84,89 +84,55 @@
         .queue {
             position: fixed;
             left: 20px; bottom: 20px;
-            width: 260px;
+            width: 230px;
             z-index: 50; display: flex; flex-direction: column;
             pointer-events: auto;
+            gap: 4px;
         }
-        .queue-card {
-            background: linear-gradient(160deg,
-                rgba(255, 240, 247, 0.92) 0%,
-                rgba(255, 232, 243, 0.90) 100%);
-            backdrop-filter: blur(16px);
-            border-radius: 18px;
-            border: 1.5px solid rgba(255, 192, 219, 0.6);
-            box-shadow:
-                0 6px 24px rgba(255, 130, 180, 0.18),
-                0 2px 6px rgba(255, 130, 180, 0.12),
-                inset 0 1px 0 rgba(255, 255, 255, 0.7);
-            overflow: hidden;
-        }
-        .queue-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 16px 10px;
-            border-bottom: 1px solid rgba(255, 192, 219, 0.4);
-        }
-        .queue-title {
-            font-size: 17px; font-weight: 700; color: #880e4f; letter-spacing: 1px;
-            display: flex; align-items: center; gap: 6px;
-        }
-        .queue-count {
-            font-size: 13px; color: #c2185b;
-            background: rgba(255, 182, 213, 0.4);
-            padding: 1px 8px; border-radius: 10px; font-weight: 500;
-        }
-        .queue-list {
-            padding: 4px 0;
-            max-height: 140px; overflow: hidden;
-        }
-        .queue-list::-webkit-scrollbar { width: 4px; }
-        .queue-list::-webkit-scrollbar-thumb { background: rgba(255, 150, 190, 0.4); border-radius: 2px; }
+        .queue-list { overflow: hidden; }
 
         .queue-item {
-            display: flex; align-items: center; gap: 10px;
-            padding: 8px 16px;
-            opacity: 0; transform: translateX(-12px) scale(0.97);
-            transition: opacity 0.45s ease, transform 0.45s cubic-bezier(.34,1.56,.64,1);
+            display: flex; align-items: center; gap: 8px;
+            padding: 3px 10px;
+            opacity: 0; transform: translateX(-8px);
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.56,.64,1);
         }
-        .queue-item.show { opacity: 1; transform: translateX(0) scale(1); }
+        .queue-item.show { opacity: 1; transform: translateX(0); }
         .queue-item.fade-out {
-            opacity: 0 !important; transform: translateX(30px) scale(0.92) !important;
-            transition: opacity 0.4s ease, transform 0.4s ease !important;
-        }
-
-        /* 当前唱的 —— 呼吸光晕 */
-        .queue-item.current .q-num {
-            background: linear-gradient(135deg, #ff6b9d, #ff8fb1);
-            color: #fff;
-            animation: breathe 2.2s ease-in-out infinite;
-        }
-        @keyframes breathe {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.5); transform: scale(1); }
-            50%      { box-shadow: 0 0 0 6px rgba(255, 107, 157, 0); transform: scale(1.08); }
+            opacity: 0 !important; transform: translateX(20px) scale(0.9) !important;
+            transition: opacity 0.3s ease, transform 0.3s ease !important;
         }
 
         .q-num {
-            width: 22px; height: 22px;
-            font-size: 12px; font-weight: 600; color: #c2185b;
-            background: rgba(255, 182, 213, 0.5);
+            width: 16px; height: 16px;
+            font-size: 10px; font-weight: 700; color: #c2185b;
+            background: rgba(255, 182, 213, 0.55);
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
         .queue-item.current .q-num {
-            background: linear-gradient(135deg, #ff6b9d, #ff8fb1); color: #fff;
+            background: #ff6b9d; color: #fff;
+            animation: breathe 2.2s ease-in-out infinite;
+        }
+        @keyframes breathe {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,157,0.45); }
+            50%      { box-shadow: 0 0 0 4px rgba(255,107,157,0); }
         }
 
-        .q-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
         .q-song {
-            font-size: 15px; font-weight: 600; color: #6a1b4a;
+            flex: 1; min-width: 0;
+            font-size: 13px; font-weight: 500; color: #6a1b4a;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .q-user {
-            font-size: 12px; color: #ad1457; opacity: 0.65;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-size: 11px; color: #ad1457; opacity: 0.55;
+            flex-shrink: 0;
         }
-        .queue-empty { text-align: center; padding: 24px 16px; font-size: 14px; color: #ad1457; opacity: 0.55; }
+        .queue-empty {
+            text-align: center; padding: 6px 10px;
+            font-size: 12px; color: #ad1457; opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -174,14 +140,8 @@
     <div class="toast-wrap" id="toastWrap"></div>
 
     <div class="queue">
-        <div class="queue-card">
-            <div class="queue-header">
-                <span class="queue-title">🎵 点歌队列</span>
-                <span class="queue-count" id="queueCount">0 首</span>
-            </div>
-            <div class="queue-list" id="queueList">
-                <div class="queue-empty" id="queueEmpty">等待观众点歌~ 🎶</div>
-            </div>
+        <div class="queue-list" id="queueList">
+            <div class="queue-empty" id="queueEmpty">等待点歌~ 🎶</div>
         </div>
     </div>
 
@@ -198,7 +158,6 @@
         let fadingIds = new Set();
 
         const $list = document.getElementById('queueList');
-        const $count = document.getElementById('queueCount');
         const $empty = document.getElementById('queueEmpty');
         const $toastWrap = document.getElementById('toastWrap');
 
@@ -269,12 +228,6 @@
                 return true;
             }).slice(0, MAX_VISIBLE);
 
-            // fade-out 时也要把它算"当前项"的位置
-            const fadeIdx = visible.findIndex(q => fadingIds.has(q.id));
-            // 被 shift 掉的那条后面的项，在 fade-out 时数字不应该跳
-
-            $count.textContent = (queue.filter(q => !removedSet.has(q.id)).length) + ' 首';
-
             if (visible.length === 0) {
                 $list.innerHTML = '';
                 $list.appendChild($empty);
@@ -296,10 +249,8 @@
                 return `
                 <div class="${cls.join(' ')}" data-id="${item.id}">
                     <div class="q-num">${num}</div>
-                    <div class="q-info">
-                        <div class="q-song">${esc(item.song)}</div>
-                        <div class="q-user">by ${esc(item.user)}</div>
-                    </div>
+                    <div class="q-song">${esc(item.song)}</div>
+                    <div class="q-user">${esc(item.user)}</div>
                 </div>`;
             }).join('');
 
