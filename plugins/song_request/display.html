@@ -87,15 +87,10 @@
             z-index: 50;
             pointer-events: auto;
         }
-
-        /* 绝对定位容器，固定能装 4 条（3 条 + 1 条 fade-out 预加载） */
         .queue-list {
             position: relative;
-            height: 178px;  /* 4 × 40px + 3 × 6px gap */
-            overflow: hidden;
+            height: 178px;
         }
-
-        /* 每条绝对定位，top 由 JS 控制并过渡 */
         .queue-item {
             position: absolute;
             left: 0; right: 0;
@@ -108,10 +103,8 @@
             border-radius: 12px;
             opacity: 0;
             transform: translateX(20px) scale(0.95);
-            transition:
-                top 0.35s ease,
-                opacity 0.35s ease,
-                transform 0.35s ease;
+            /* top 过渡：关键！让条目位置变化时滑动 */
+            transition: top 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
         }
         .queue-item.show {
             opacity: 1;
@@ -120,26 +113,16 @@
         .queue-item.fade-out {
             opacity: 0;
             transform: translateX(20px) scale(0.95);
-            pointer-events: none;
         }
 
-        .q-num {
-            width: 18px; height: 18px;
-            font-size: 11px; font-weight: 700; color: #fff;
-            background: #e891af;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-        .queue-item.current .q-num {
-            background: #ff4d8b;
+        .queue-item.current {
+            background: rgba(255, 220, 235, 0.9);
             animation: breathe 2.2s ease-in-out infinite;
         }
         @keyframes breathe {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,0.5); }
-            50%      { box-shadow: 0 0 0 5px rgba(255,77,139,0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,0.4); }
+            50%      { box-shadow: 0 0 0 4px rgba(255,77,139,0); }
         }
-
         .q-song {
             flex: 1; min-width: 0;
             font-size: 14px; font-weight: 600; color: #3d1027;
@@ -160,7 +143,7 @@
         .queue-more {
             position: absolute;
             left: 0; right: 0;
-            top: 178px;  /* 紧贴 queue-list 底部 */
+            top: 178px;
             text-align: center;
             font-size: 11px; color: #ad1457; opacity: 0.55;
             padding: 2px 0;
@@ -172,9 +155,7 @@
     <div class="toast-wrap" id="toastWrap"></div>
 
     <div class="queue">
-        <div class="queue-list" id="queueList">
-            <div class="queue-empty" id="queueEmpty">等待点歌~ 🎶</div>
-        </div>
+        <div class="queue-list" id="queueList"></div>
         <div class="queue-more" id="queueMore" style="display:none"></div>
     </div>
 
@@ -185,16 +166,21 @@
 
         const POLL = 1500;
         const TOAST_DURATION = 4000;
-        const ROW_H = 40;
-        const GAP = 6;
-        const ROW_STEP = ROW_H + GAP;  // 46px
+        const MAX_VISIBLE = 3;
+        const ROW_STEP = 46;
 
+        // 状态
         let queue = [];
         let knownIds = new Set();
         let fadingIds = new Set();
+        let removedIds = [];
+        let lastRemoteQueue = [];
+
+        // 核心：id -> DOM 元素 的固定映射
+        // 每个 id 永远对应同一个 DOM 元素，位置变化只改 top
+        const idToEl = new Map();
 
         const $list = document.getElementById('queueList');
-        const $empty = document.getElementById('queueEmpty');
         const $more = document.getElementById('queueMore');
         const $toastWrap = document.getElementById('toastWrap');
 
@@ -214,19 +200,7 @@
             return null;
         }
 
-        async function saveQueue(newQueue) {
-            if (!ROOM_ID || !PLUGIN_NAME) return;
-            try {
-                await fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'queue', value: newQueue })
-                });
-            } catch (e) {}
-        }
-
-        // ==================== Toast ====================
-
+        // ============ Toast ============
         function showToast(item) {
             if (knownIds.has(item.id)) return;
             knownIds.add(item.id);
@@ -253,20 +227,41 @@
             }, TOAST_DURATION);
         }
 
-        // ==================== Render ====================
+        // ============ 核心渲染 ============
+        function getOrCreateEl(item) {
+            let el = idToEl.get(item.id);
+            if (el) return el;
+
+            el = document.createElement('div');
+            el.className = 'queue-item';
+            el.dataset.id = item.id;
+            el.style.top = '1000px';
+            el.innerHTML = `
+                <div class="q-song"></div>
+                <div class="q-user"></div>`;
+            el.querySelector('.q-song').textContent = item.song;
+            el.querySelector('.q-user').textContent = item.user;
+            $list.appendChild(el);
+            idToEl.set(item.id, el);
+            return el;
+        }
+
+        function releaseEl(id) {
+            const el = idToEl.get(id);
+            if (el) {
+                el.remove();
+                idToEl.delete(id);
+            }
+        }
 
         function renderQueue() {
             const removedSet = new Set(removedIds);
-            const MAX_VISIBLE = 3;
-            const hasFading = fadingIds.size > 0;
-
-            // 活动队列（未删除的）
             const active = queue.filter(q => !removedSet.has(q.id));
-            // 渲染列表：fade-out 期间 4 条，否则 3 条
+
+            // 计算应该显示的条目列表
+            const hasFading = fadingIds.size > 0;
             const take = hasFading ? MAX_VISIBLE + 1 : MAX_VISIBLE;
             const renderList = active.slice(0, take);
-
-            // fade-out 的那条如果没在 renderList 里，插到队头
             fadingIds.forEach(id => {
                 const item = queue.find(q => q.id === id);
                 if (item && !renderList.some(v => v.id === id)) {
@@ -275,83 +270,70 @@
             });
 
             // queue-more
-            const totalActive = active.length;
-            if (totalActive > MAX_VISIBLE) {
-                $more.textContent = `...还有 ${totalActive - MAX_VISIBLE} 首待播`;
+            if (active.length > MAX_VISIBLE) {
+                $more.textContent = `...还有 ${active.length - MAX_VISIBLE} 首待播`;
                 $more.style.display = '';
             } else {
                 $more.style.display = 'none';
             }
 
+            // 空队列
             if (renderList.length === 0) {
-                // 空队列：把所有 queue-item 移走，显示 empty
-                $list.querySelectorAll('.queue-item').forEach(el => el.style.top = '1000px');
-                if ($empty.parentNode !== $list) $list.appendChild($empty);
-                $empty.style.top = '0px';
-                return;
-            }
-
-            // 防重复：id 序列完全一样 → 只更新类和 top（top 的变化会被 CSS 过渡动画化）
-            const existingEls = [...$list.querySelectorAll('.queue-item')];
-            const existingIds = existingEls.map(el => parseInt(el.dataset.id));
-            const newIds = renderList.map(q => q.id);
-
-            if (existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i])) {
-                existingEls.forEach((el, i) => {
-                    const item = renderList[i];
-                    const fading = fadingIds.has(item.id);
-                    const activeTop = active.findIndex(q => q.id === item.id);
-                    const isFirst = !fading && activeTop === 0;
-                    // 更新 top（CSS transition 自动动画到新位置）
-                    el.style.top = (i * ROW_STEP) + 'px';
-                    el.classList.toggle('fade-out', fading);
-                    el.classList.toggle('current', !!isFirst);
+                idToEl.forEach(el => {
+                    el.style.top = '1000px';
+                    el.classList.remove('show', 'fade-out', 'current');
                 });
-                // 移走 empty
-                if ($empty.parentNode) $empty.parentNode.removeChild($empty);
+                if (!$list.querySelector('.queue-empty')) {
+                    const empty = document.createElement('div');
+                    empty.className = 'queue-empty';
+                    empty.textContent = '等待点歌~ 🎶';
+                    $list.appendChild(empty);
+                }
                 return;
+            } else {
+                const e = $list.querySelector('.queue-empty');
+                if (e) e.remove();
             }
 
-            // 重建 DOM
-            $list.innerHTML = '';
-            const frag = document.createDocumentFragment();
+            // 给 renderList 里的每个条目设置位置
+            const usedIds = new Set();
             renderList.forEach((item, i) => {
+                usedIds.add(item.id);
+                const el = getOrCreateEl(item);
+
                 const fading = fadingIds.has(item.id);
-                const activeTop = active.findIndex(q => q.id === item.id);
-                const isFirst = !fading && activeTop === 0;
-                const num = isFirst ? '▶' : (fading ? '' : activeTop);
-                const cls = ['queue-item'];
-                if (isFirst) cls.push('current');
-                if (fading) cls.push('fade-out', 'show');
+                const activeIdx = active.findIndex(q => q.id === item.id);
+                const isFirst = !fading && activeIdx === 0;
 
-                const el = document.createElement('div');
-                el.className = cls.join(' ');
-                el.dataset.id = item.id;
+                // 写 top —— 同一个 id 永远用同一个 el，top 变了 CSS 自动过渡
                 el.style.top = (i * ROW_STEP) + 'px';
-                el.innerHTML = `
-                    <div class="q-num">${num}</div>
-                    <div class="q-song">${esc(item.song)}</div>
-                    <div class="q-user">${esc(item.user)}</div>`;
-                frag.appendChild(el);
-            });
-            $list.appendChild(frag);
 
-            // 非 fade-out 条目：下一帧加 show 触发展开动画
-            requestAnimationFrame(() => {
-                $list.querySelectorAll('.queue-item:not(.fade-out)').forEach(el => {
-                    el.classList.add('show');
-                });
+                el.classList.toggle('fade-out', fading);
+                el.classList.toggle('current', !!isFirst);
+                el.classList.add('show');
+            });
+
+            // 不再显示的条目：移到屏幕外（不销毁，保留 DOM 状态，可能 undo 回来）
+            idToEl.forEach((el, id) => {
+                if (!usedIds.has(id)) {
+                    el.style.top = '1000px';
+                    el.classList.remove('fade-out', 'current');
+                }
+            });
+
+            // 真正从队列里没了（被 splice 或 poll 确认删掉）的条目才销毁
+            const queueIds = new Set(queue.map(q => q.id));
+            [...idToEl.keys()].forEach(id => {
+                if (!queueIds.has(id) && !removedSet.has(id)) {
+                    releaseEl(id);
+                }
             });
         }
 
-        // ==================== 控制 ====================
-
+        // ============ 控制 ============
         const FADE_MS = 350;
-        let removedIds = [];
-        let lastRemoteQueue = [];
 
         async function doNext() {
-            if (queue.length === 0) return;
             const firstVisible = queue.find(q => !removedIds.includes(q.id));
             if (!firstVisible) return;
 
@@ -364,6 +346,7 @@
                 if (idx >= 0) queue.splice(idx, 1);
                 removedIds.push(firstVisible.id);
                 knownIds.add(firstVisible.id);
+                releaseEl(firstVisible.id);  // 销毁这个 DOM 元素
                 renderQueue();
                 await _saveAll();
             }, FADE_MS + 10);
@@ -387,16 +370,12 @@
                 await fetch(`/api/plugins/${ROOM_ID}/${PLUGIN_NAME}/state`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        key: 'queue_view',
-                        value: removedIds
-                    })
+                    body: JSON.stringify({ key: 'queue_view', value: removedIds })
                 });
             } catch (e) {}
         }
 
-        // ==================== 轮询 ====================
-
+        // ============ 轮询 ============
         async function poll() {
             try {
                 const state = await fetchState();
@@ -417,7 +396,6 @@
                         changed = true;
                     }
                 }
-
                 const beforeLen = queue.length;
                 queue = queue.filter(q => remoteIds.has(q.id));
                 if (queue.length !== beforeLen) changed = true;
@@ -433,20 +411,13 @@
                 knownIds = new Set(remoteQueue.filter(q => !removedSet.has(q.id)).map(q => q.id));
 
                 if (changed) renderQueue();
-            } catch (e) {
-                console.error('[点歌队列] 轮询失败:', e);
-            }
+            } catch (e) {}
         }
 
+        // ============ 启动 ============
         async function init() {
-            if (!ROOM_ID) {
-                $empty.textContent = '错误: 缺少房间ID';
-                return;
-            }
-            if (!PLUGIN_NAME) {
-                $empty.textContent = '错误: 缺少插件名';
-                return;
-            }
+            if (!ROOM_ID) return;
+            if (!PLUGIN_NAME) return;
 
             const state = await fetchState();
             const remoteQueue = (state && Array.isArray(state.queue)) ? state.queue : [];
