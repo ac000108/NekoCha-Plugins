@@ -111,6 +111,24 @@
         0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.3); }
         50%      { box-shadow: 0 0 0 3px rgba(255,77,139,0); }
     }
+    .q-num {
+        flex-shrink: 0;
+        width: 18px; height: 18px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700; color: white;
+        background: #e891af;
+        line-height: 1;
+        transition: box-shadow .2s;
+    }
+    .queue-item.current .q-num {
+        background: #ff4d8b;
+        animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,.5); }
+        50%      { box-shadow: 0 0 0 4px rgba(255,77,139,0); }
+    }
     .q-song { flex: 1; min-width: 0;
         font-size: 14px; font-weight: 600; color: #3d1027;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -198,7 +216,7 @@
         el = document.createElement('div');
         el.className = 'queue-item';
         el.dataset.id = item.id;
-        el.innerHTML = '<div class="q-song"></div><div class="q-user"></div>';
+        el.innerHTML = '<div class="q-num"></div><div class="q-song"></div><div class="q-user"></div>';
         el.querySelector('.q-song').textContent = item.song;
         el.querySelector('.q-user').textContent = item.user;
         $list.appendChild(el);
@@ -234,11 +252,14 @@
         renderList.forEach((item, i) => {
             const el = getOrCreateEl(item);
             const isFading = item.id === fadingId;
+            const isFirst = !isFading && item.id === firstId;
             el.style.display = '';
             el.style.top = (i * STEP) + 'px';
             el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
-            el.classList.toggle('current', !isFading && item.id === firstId);
+            el.classList.toggle('current', isFirst);
+            // 编号：当前正在唱的显示 ▶，其他显示 index+1
+            el.querySelector('.q-num').textContent = isFirst ? '▶' : i + 1;
             if (!preloading || i < MAX_VISIBLE) {
                 el.classList.add('show');
             } else {
