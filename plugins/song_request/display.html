@@ -85,6 +85,7 @@
             left: 20px; top: 180px;
             width: 220px;
             z-index: 50;
+            display: flex; flex-direction: column;
             pointer-events: auto;
         }
         .queue-list {
@@ -175,6 +176,7 @@
         <div class="queue-list" id="queueList">
             <div class="queue-empty" id="queueEmpty">等待点歌~ 🎶</div>
         </div>
+        <div class="queue-more" id="queueMore" style="display:none"></div>
     </div>
 
     <script>
@@ -191,6 +193,7 @@
 
         const $list = document.getElementById('queueList');
         const $empty = document.getElementById('queueEmpty');
+        const $more = document.getElementById('queueMore');
         const $toastWrap = document.getElementById('toastWrap');
 
         function esc(s) {
@@ -252,8 +255,17 @@
 
         function renderQueue() {
             const removedSet = new Set(removedIds);
-
             const MAX_VISIBLE = 3;
+            const totalActive = queue.filter(q => !removedSet.has(q.id)).length;
+
+            // queue-more 独立更新（queue-list 外面，位置固定）
+            if (totalActive > MAX_VISIBLE) {
+                $more.textContent = `...还有 ${totalActive - MAX_VISIBLE} 首待播`;
+                $more.style.display = '';
+            } else {
+                $more.style.display = 'none';
+            }
+
             const visible = queue.filter(q => !removedSet.has(q.id)).slice(0, MAX_VISIBLE);
 
             // fade-out 中的那条要保留在队头触发折叠动画
@@ -302,9 +314,7 @@
                     <div class="q-song">${esc(item.song)}</div>
                     <div class="q-user">${esc(item.user)}</div>
                 </div>`;
-            }).join('') + (queue.filter(q => !removedSet.has(q.id)).length > MAX_VISIBLE
-                ? `<div class="queue-more">...还有 ${queue.filter(q => !removedSet.has(q.id)).length - MAX_VISIBLE} 首待播</div>`
-                : '');
+            }).join('');
 
             requestAnimationFrame(() => {
                 $list.querySelectorAll('.queue-item:not(.fade-out)').forEach(el => {
