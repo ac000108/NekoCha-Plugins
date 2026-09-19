@@ -12,14 +12,13 @@
     :root {
         --row: 40px;
         --step: 46px;
-        --list-h: 178px;          /* 4 条 × step - gap */
+        --list-h: 132px;           /* 3 条 × 40 + 2 × 6 gap */
         --pink-soft: rgba(255, 240, 248, .75);
         --pink-hot:  rgba(255, 220, 235, .92);
         --pink-line: rgba(255, 182, 213, .7);
         --pink-deep: #ad1457;
         --pink-dark: #6a1b4a;
-        --ease: cubic-bezier(.22, 1, .36, 1);  /* ease-out-expo，干脆利落 */
-        --ease-spring: cubic-bezier(.34, 1.56, .64, 1);  /* 弹性，适合进入 */
+        --ease: cubic-bezier(.22, 1, .36, 1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
@@ -124,12 +123,6 @@
         font-size: 13px; color: #c2185b; opacity: .7;
         background: rgba(255,255,255,.45); border-radius: 10px;
     }
-    .queue-more {
-        position: absolute; left: 0; right: 0; top: var(--list-h);
-        text-align: center; font-size: 11px; color: var(--pink-deep); opacity: .55;
-        padding: 2px 0;
-        transition: opacity .3s ease-out;
-    }
 </style>
 </head>
 <body>
@@ -137,24 +130,20 @@
 <div class="toast-wrap" id="toastWrap"></div>
 <div class="queue">
     <div class="queue-list" id="queueList"></div>
-    <div class="queue-more" id="queueMore" style="display:none"></div>
 </div>
 
 <script>
 (function() {
-    // ===== 配置 =====
     const POLL = 1500;
     const MAX_VISIBLE = 3;
     const STEP = 46;
-    const FADE_MS = 280;  // 必须和 CSS fade-out transition 时长一致
+    const FADE_MS = 280;
     const TRIGGER_LABEL = { '主播': '', '盲盒': '盲盒续杯', '免费': '免费次数' };
 
-    // ===== 路由 =====
     const p = location.pathname.split('/').filter(Boolean);
     const ROOM_ID = p[1], PLUGIN = p[3];
     if (!ROOM_ID || !PLUGIN) return;
 
-    // ===== 状态 =====
     let queue = [];
     let knownIds = new Set();
     let fadingId = null;
@@ -163,11 +152,9 @@
 
     const idToEl = new Map();
     const $list = document.getElementById('queueList');
-    const $more = document.getElementById('queueMore');
     const $toastWrap = document.getElementById('toastWrap');
     let $empty = null;
 
-    // ===== API =====
     const fetchState = () =>
         fetch(`/api/plugins/${ROOM_ID}/${PLUGIN}/data`)
             .then(r => r.ok ? r.json() : null)
@@ -180,7 +167,6 @@
         }).catch(() => {});
     const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
-    // ===== Toast =====
     function showToast(item) {
         if (knownIds.has(item.id)) return;
         knownIds.add(item.id);
@@ -206,7 +192,6 @@
         }, 4000);
     }
 
-    // ===== 渲染 =====
     function getOrCreateEl(item) {
         let el = idToEl.get(item.id);
         if (el) return el;
@@ -222,28 +207,13 @@
     }
 
     function renderQueue() {
-        // 1. active = queue 里没被 removed 的
         const active = [];
         for (const q of queue) if (!removedSet.has(q.id)) active.push(q);
         const firstId = active[0]?.id;
 
-        // 2. renderList = 要显示哪些
-        //    fade-out 期间多预渲染 1 条（在下面等着）
         let renderList = fadingId ? active.slice(0, MAX_VISIBLE + 1)
                                   : active.slice(0, MAX_VISIBLE);
 
-        // 3. queue-more：永远贴在 queue-list 底部
-        if (active.length > MAX_VISIBLE) {
-            $more.textContent = `...还有 ${active.length - MAX_VISIBLE} 首待播`;
-            $more.style.display = '';
-            $more.style.opacity = '1';
-        } else {
-            $more.style.opacity = '0';
-            // 等 fade-out 过渡完再隐藏，不然会闪
-            setTimeout(() => { if (active.length <= MAX_VISIBLE) $more.style.display = 'none'; }, 400);
-        }
-
-        // 4. 空队列
         if (renderList.length === 0) {
             idToEl.forEach(el => {
                 el.style.display = 'none';
@@ -259,9 +229,6 @@
         }
         if ($empty?.parentNode) { $empty.remove(); $empty = null; }
 
-        // 5. 主循环：renderList → 更新/创建/移动
-        //    ★ 新条目直接创建 + 设对 top，opacity 0 靠 CSS 默认值隐藏
-        //    加 .show 后 opacity 1 + transform 归零 → 安静显现
         const usedIds = new Set(renderList.map(q => q.id));
         const preloading = fadingId ? active.length > MAX_VISIBLE : false;
         renderList.forEach((item, i) => {
@@ -272,8 +239,6 @@
             el.style.setProperty('--i', i);
             el.classList.toggle('fade-out', isFading);
             el.classList.toggle('current', !isFading && item.id === firstId);
-            // 预加载的那条（index >= MAX_VISIBLE）保持 opacity:0，不加 show
-            // 等 fade-out 结束后它自然升到前 3 位再加 show
             if (!preloading || i < MAX_VISIBLE) {
                 el.classList.add('show');
             } else {
@@ -281,7 +246,6 @@
             }
         });
 
-        // 6. 不在 renderList 里的 → 隐藏；真没了 → 销毁
         const queueIds = new Set(queue.map(q => q.id));
         for (const [id, el] of idToEl) {
             if (usedIds.has(id)) continue;
@@ -294,9 +258,8 @@
         }
     }
 
-    // ===== 控制 =====
     async function doNext() {
-        if (fadingId) return;  // 防重入
+        if (fadingId) return;
         const target = queue.find(q => !removedSet.has(q.id));
         if (!target) return;
 
@@ -316,7 +279,6 @@
 
     async function doUndo() {
         if (!removedSet.size) return;
-        // 随便取一个 removedId 恢复
         const id = [...removedSet][removedSet.size - 1];
         removedSet.delete(id);
         const restored = lastRemoteQueue.find(q => q.id === id);
@@ -326,7 +288,6 @@
         await saveView();
     }
 
-    // ===== 轮询 =====
     async function poll() {
         try {
             const state = await fetchState();
@@ -355,8 +316,6 @@
             if (queue.length !== before) changed = true;
 
             removedSet = mergedRemoved;
-
-            // 清理：removedSet 里的 id 不在任何地方了 → 丢弃
             if (removedSet.size) {
                 const remoteLiveIds = new Set([...remoteIds, ...remoteRemoved]);
                 for (const id of removedSet) {
@@ -365,12 +324,10 @@
             }
 
             knownIds = newKnown;
-            // fade-out 期间跳过 renderQueue：防止 poll 打断 CSS 动画
             if (changed && !fadingId) renderQueue();
         } catch (e) { console.error('[点歌] poll:', e); }
     }
 
-    // ===== 启动 =====
     (async function init() {
         const state = await fetchState();
         const remote = (state && Array.isArray(state.queue)) ? state.queue : [];
