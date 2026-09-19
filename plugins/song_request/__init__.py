@@ -31,6 +31,29 @@ class SongRequestPlugin(BasePlugin):
         self._daily_count = {}    # {user_id: count} 免费次数已用
         self._daily_date = {}     # {user_id: date_int} 日期标记
         self._pending_blind = {}  # {user_id: {'expire_ts': int}}
+        # 从 state.json 恢复队列（框架重启不丢）
+        self._queue = self.get_state('queue', []) or []
+        self._next_id = self.get_state('next_id', 1) or 1
+
+    def _append_queue(self, song: str, variables: dict, trigger: str):
+        """点歌成功后追加到队列并持久化"""
+        with self._lock:
+            item = {
+                'id': self._next_id,
+                'song': song,
+                'user': variables.get('用户名', '观众'),
+                'user_id': variables.get('用户ID', 0),
+                'trigger': trigger,
+                'done': False,
+                'ts': int(time.time()),
+            }
+            self._next_id += 1
+            self._queue.append(item)
+            # 只保留最近 50 条
+            if len(self._queue) > 50:
+                self._queue = self._queue[-50:]
+            self.set_state('queue', self._queue)
+            self.set_state('next_id', self._next_id)
 
     # ==================== 工具方法 ====================
 
@@ -182,6 +205,7 @@ class SongRequestPlugin(BasePlugin):
 
         variables = {
             '用户名': user_name,
+            '用户ID': user_id,
             '舰长等级': message.get('舰长等级', ''),
         }
 
@@ -195,6 +219,7 @@ class SongRequestPlugin(BasePlugin):
             song = self._resolve_song(command, variables)
             if song:
                 self._do_request(song, variables)
+                self._append_queue(song, variables, '主播')
                 print(f"[点歌姬] [主播] {user_name} -> {song}")
             return
 
@@ -207,6 +232,7 @@ class SongRequestPlugin(BasePlugin):
                 song = self._resolve_song(command, variables)
                 if song:
                     self._do_request(song, variables)
+                    self._append_queue(song, variables, '盲盒')
                     print(f"[点歌姬] [盲盒] {user_name} -> {song}")
                 else:
                     print(f"[点歌姬] [盲盒] {user_name} 拒绝（歌名不在歌单内）")
@@ -231,6 +257,7 @@ class SongRequestPlugin(BasePlugin):
         song = self._resolve_song(command, variables)
         if song:
             self._do_request(song, variables)
+            self._append_queue(song, variables, '免费')
             print(f"[点歌姬] [免费] {user_name} -> {song}")
         else:
             print(f"[点歌姬] {user_name} 拒绝（歌名不在歌单内）")
