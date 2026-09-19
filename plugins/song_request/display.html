@@ -85,48 +85,42 @@
             left: 20px; top: 180px;
             width: 220px;
             z-index: 50;
-            display: flex; flex-direction: column;
             pointer-events: auto;
         }
+
+        /* 绝对定位容器，固定能装 4 条（3 条 + 1 条 fade-out 预加载） */
         .queue-list {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            position: relative;
+            height: 178px;  /* 4 × 40px + 3 × 6px gap */
+            overflow: hidden;
         }
+
+        /* 每条绝对定位，top 由 JS 控制并过渡 */
         .queue-item {
+            position: absolute;
+            left: 0; right: 0;
+            height: 40px;
             display: flex;
             align-items: center;
             gap: 8px;
+            padding: 7px 12px;
             background: rgba(255, 240, 248, 0.75);
             border-radius: 12px;
             opacity: 0;
             transform: translateX(20px) scale(0.95);
-            max-height: 0;
-            padding: 0 12px;
-            overflow: hidden;
             transition:
+                top 0.35s ease,
                 opacity 0.35s ease,
-                transform 0.35s ease,
-                max-height 0.35s ease,
-                padding 0.35s ease;
+                transform 0.35s ease;
         }
         .queue-item.show {
             opacity: 1;
             transform: translateX(0) scale(1);
-            max-height: 40px;
-            padding: 7px 12px;
         }
         .queue-item.fade-out {
-            opacity: 0 !important;
-            transform: translateX(20px) scale(0.95) !important;
-            max-height: 0 !important;
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-            transition:
-                opacity 0.35s ease,
-                transform 0.35s ease,
-                max-height 0.35s ease,
-                padding 0.35s ease !important;
+            opacity: 0;
+            transform: translateX(20px) scale(0.95);
+            pointer-events: none;
         }
 
         .q-num {
@@ -157,6 +151,8 @@
             flex-shrink: 0;
         }
         .queue-empty {
+            position: absolute;
+            top: 0; left: 0; right: 0;
             text-align: center; padding: 8px 10px;
             font-size: 13px; color: #c2185b; opacity: 0.7;
             background: rgba(255,255,255,0.45); border-radius: 10px;
@@ -164,11 +160,10 @@
         .queue-more {
             position: absolute;
             left: 0; right: 0;
-            top: 132px;  /* 3×40 + 2×6 = 132px */
+            top: 178px;  /* 紧贴 queue-list 底部 */
             text-align: center;
             font-size: 11px; color: #ad1457; opacity: 0.55;
             padding: 2px 0;
-            transition: top 0.35s ease;
         }
     </style>
 </head>
@@ -190,6 +185,9 @@
 
         const POLL = 1500;
         const TOAST_DURATION = 4000;
+        const ROW_H = 40;
+        const GAP = 6;
+        const ROW_STEP = ROW_H + GAP;  // 46px
 
         let queue = [];
         let knownIds = new Set();
@@ -261,72 +259,84 @@
             const removedSet = new Set(removedIds);
             const MAX_VISIBLE = 3;
             const hasFading = fadingIds.size > 0;
-            // fade-out 期间多预加载 1 条，让底下那条有 show 动画
+
+            // 活动队列（未删除的）
+            const active = queue.filter(q => !removedSet.has(q.id));
+            // 渲染列表：fade-out 期间 4 条，否则 3 条
             const take = hasFading ? MAX_VISIBLE + 1 : MAX_VISIBLE;
+            const renderList = active.slice(0, take);
 
-            const totalActive = queue.filter(q => !removedSet.has(q.id)).length;
-            const baseList = queue.filter(q => !removedSet.has(q.id)).slice(0, take);
-
-            // fade-out 中的那条（如果不在 baseList 里）也要在队头
+            // fade-out 的那条如果没在 renderList 里，插到队头
             fadingIds.forEach(id => {
                 const item = queue.find(q => q.id === id);
-                if (item && !baseList.some(v => v.id === id)) {
-                    baseList.unshift(item);
+                if (item && !renderList.some(v => v.id === id)) {
+                    renderList.unshift(item);
                 }
             });
 
-            // queue-more：fade-out 期间 top 临时撑开（4条底 = 4×40 + 3×6 = 178px）
-            // fade-out 结束后回到 3条底 = 132px
-            const itemCount = hasFading ? Math.min(baseList.length, MAX_VISIBLE + 1) : Math.min(baseList.length, MAX_VISIBLE);
-            const moreTop = itemCount * 40 + Math.max(itemCount - 1, 0) * 6;
+            // queue-more
+            const totalActive = active.length;
             if (totalActive > MAX_VISIBLE) {
                 $more.textContent = `...还有 ${totalActive - MAX_VISIBLE} 首待播`;
                 $more.style.display = '';
-                $more.style.top = moreTop + 'px';
             } else {
                 $more.style.display = 'none';
             }
 
-            if (baseList.length === 0) {
-                $list.innerHTML = '';
-                $list.appendChild($empty);
+            if (renderList.length === 0) {
+                // 空队列：把所有 queue-item 移走，显示 empty
+                $list.querySelectorAll('.queue-item').forEach(el => el.style.top = '1000px');
+                if ($empty.parentNode !== $list) $list.appendChild($empty);
+                $empty.style.top = '0px';
                 return;
             }
 
-            // 防重复
-            const existingIds = [...$list.querySelectorAll('.queue-item')].map(el => parseInt(el.dataset.id));
-            const newIds = baseList.map(q => q.id);
+            // 防重复：id 序列完全一样 → 只更新类和 top（top 的变化会被 CSS 过渡动画化）
+            const existingEls = [...$list.querySelectorAll('.queue-item')];
+            const existingIds = existingEls.map(el => parseInt(el.dataset.id));
+            const newIds = renderList.map(q => q.id);
+
             if (existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i])) {
-                const items = $list.querySelectorAll('.queue-item');
-                items.forEach((el, i) => {
-                    const item = baseList[i];
+                existingEls.forEach((el, i) => {
+                    const item = renderList[i];
                     const fading = fadingIds.has(item.id);
-                    const isFirst = !fading && queue.filter(q => !removedSet.has(q.id)).slice(0, MAX_VISIBLE)[0]?.id === item.id;
+                    const activeTop = active.findIndex(q => q.id === item.id);
+                    const isFirst = !fading && activeTop === 0;
+                    // 更新 top（CSS transition 自动动画到新位置）
+                    el.style.top = (i * ROW_STEP) + 'px';
                     el.classList.toggle('fade-out', fading);
                     el.classList.toggle('current', !!isFirst);
-                    if (!el.classList.contains('show')) el.classList.add('show');
                 });
+                // 移走 empty
+                if ($empty.parentNode) $empty.parentNode.removeChild($empty);
                 return;
             }
 
             // 重建 DOM
-            let displayIdx = -1;
-            $list.innerHTML = baseList.map((item) => {
+            $list.innerHTML = '';
+            const frag = document.createDocumentFragment();
+            renderList.forEach((item, i) => {
                 const fading = fadingIds.has(item.id);
-                if (!fading) displayIdx++;
-                const isFirst = !fading && displayIdx === 0;
-                const num = isFirst ? '▶' : (fading ? '' : displayIdx);
+                const activeTop = active.findIndex(q => q.id === item.id);
+                const isFirst = !fading && activeTop === 0;
+                const num = isFirst ? '▶' : (fading ? '' : activeTop);
                 const cls = ['queue-item'];
                 if (isFirst) cls.push('current');
                 if (fading) cls.push('fade-out', 'show');
-                return `
-                <div class="${cls.join(' ')}" data-id="${item.id}">
+
+                const el = document.createElement('div');
+                el.className = cls.join(' ');
+                el.dataset.id = item.id;
+                el.style.top = (i * ROW_STEP) + 'px';
+                el.innerHTML = `
                     <div class="q-num">${num}</div>
                     <div class="q-song">${esc(item.song)}</div>
-                    <div class="q-user">${esc(item.user)}</div>
-                </div>`;
-            }).join('');
+                    <div class="q-user">${esc(item.user)}</div>`;
+                frag.appendChild(el);
+            });
+            $list.appendChild(frag);
 
+            // 非 fade-out 条目：下一帧加 show 触发展开动画
             requestAnimationFrame(() => {
                 $list.querySelectorAll('.queue-item:not(.fade-out)').forEach(el => {
                     el.classList.add('show');
@@ -345,11 +355,9 @@
             const firstVisible = queue.find(q => !removedIds.includes(q.id));
             if (!firstVisible) return;
 
-            // 给队头加 fade-out 类（CSS 自动开始 350ms 收缩动画）
             fadingIds.add(firstVisible.id);
             renderQueue();
 
-            // 动画结束后真正从数据里删
             setTimeout(async () => {
                 fadingIds.delete(firstVisible.id);
                 const idx = queue.findIndex(q => q.id === firstVisible.id);
@@ -358,7 +366,7 @@
                 knownIds.add(firstVisible.id);
                 renderQueue();
                 await _saveAll();
-            }, FADE_MS + 10);  // +10ms 保险
+            }, FADE_MS + 10);
         }
 
         async function doUndo() {
@@ -394,16 +402,13 @@
                 const state = await fetchState();
                 if (!state) return;
 
-                // 插件的 queue（纯数组）
                 const remoteQueue = Array.isArray(state.queue) ? state.queue : [];
-                lastRemoteQueue = remoteQueue;  // 缓存供 undo 用
-                // 前端的 queue_view（removedIds 数组）
+                lastRemoteQueue = remoteQueue;
                 const remoteRemoved = Array.isArray(state.queue_view) ? state.queue_view : [];
 
                 const remoteIds = new Set(remoteQueue.map(q => q.id));
                 const myRemoved = new Set(removedIds);
 
-                // 1. 插件新加的 → 追加（除非已被前端标记删除）
                 let changed = false;
                 const myVisibleIds = new Set(queue.map(q => q.id));
                 for (const item of remoteQueue) {
@@ -413,15 +418,12 @@
                     }
                 }
 
-                // 2. 插件砍了的（超过50条）→ 同步移除
                 const beforeLen = queue.length;
                 queue = queue.filter(q => remoteIds.has(q.id));
                 if (queue.length !== beforeLen) changed = true;
 
-                // 3. 同步 removedIds（remote 是持久化的，本地刚删的也得合进去）
                 removedIds = [...new Set([...remoteRemoved, ...removedIds])];
 
-                // 4. Toast（只 toast 没被删的）
                 const removedSet = new Set(removedIds);
                 for (const item of remoteQueue) {
                     if (!removedSet.has(item.id) && !knownIds.has(item.id)) {
@@ -429,10 +431,6 @@
                     }
                 }
                 knownIds = new Set(remoteQueue.filter(q => !removedSet.has(q.id)).map(q => q.id));
-
-                // 5. 合并后的显示队列 = remoteQueue 过滤 removedIds
-                // 但 queue 保持包含全部（用于 shift 时不丢数据）
-                // renderQueue 内部再过滤
 
                 if (changed) renderQueue();
             } catch (e) {
@@ -450,7 +448,6 @@
                 return;
             }
 
-            // 初始化
             const state = await fetchState();
             const remoteQueue = (state && Array.isArray(state.queue)) ? state.queue : [];
             const remoteRemoved = (state && Array.isArray(state.queue_view)) ? state.queue_view : [];
@@ -461,7 +458,6 @@
             knownIds = new Set(queue.map(q => q.id));
             renderQueue();
 
-            // 快捷键
             document.addEventListener('keydown', e => {
                 const tag = (e.target && e.target.tagName || '').toLowerCase();
                 if (tag === 'input' || tag === 'textarea') return;
