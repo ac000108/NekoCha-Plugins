@@ -91,8 +91,7 @@
             display: flex; flex-direction: column;
             gap: 6px;
             overflow: hidden;
-            /* 3条高度固定 = 3*40px item + 2*6px gap = 132px */
-            max-height: 132px;
+            transition: max-height 0.35s ease;
         }
         .queue-item {
             display: flex; align-items: center; gap: 8px;
@@ -276,16 +275,21 @@
             const existingIds = [...$list.querySelectorAll('.queue-item')].map(el => parseInt(el.dataset.id));
             const newIds = visible.map(q => q.id);
             if (!firstRender && existingIds.length === newIds.length && existingIds.every((id, i) => id === newIds[i])) {
-                // DOM 结构没变，只需要更新 fade-out / show 类
                 $list.querySelectorAll('.queue-item').forEach((el, i) => {
                     const item = visible[i];
                     const fading = fadingIds.has(item.id);
                     el.classList.toggle('fade-out', fading);
-                    // 给所有已有元素确保 show 类（首次入场动画只在首次触发）
                     if (!el.classList.contains('show')) el.classList.add('show');
                 });
+                // 即使 DOM 没变，高度也可能变（比如 fade-out 从 3→4 条）
+                const maxItems = Math.min(visible.length, hasFading ? 4 : MAX_VISIBLE);
+                $list.style.maxHeight = (maxItems * 40 + Math.max(maxItems - 1, 0) * 6) + 'px';
                 return;
             }
+
+            // 动态算高度：可见条数 × 40px + gap × 6px
+            const maxItems = Math.min(visible.length, hasFading ? 4 : MAX_VISIBLE);
+            $list.style.maxHeight = (maxItems * 40 + Math.max(maxItems - 1, 0) * 6) + 'px';
 
             let displayIdx = -1;
             $list.innerHTML = visible.map((item) => {
