@@ -98,9 +98,9 @@
             display: flex; align-items: center; gap: 8px;
             background: rgba(255, 240, 248, 0.75);
             border-radius: 12px;
-            /* 初始状态：和 fade-out 完全对称，show 时展开 */
+            /* 初始状态：从右边滑入，和 fade-out 对称向右边滑出 */
             opacity: 0;
-            transform: translateX(-20px) scale(0.95);
+            transform: translateX(20px) scale(0.95);
             max-height: 0;
             padding: 0 12px;
             transition:
