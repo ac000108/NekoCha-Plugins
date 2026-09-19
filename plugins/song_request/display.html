@@ -83,17 +83,18 @@
         /* ============ Queue ============ */
         .queue {
             position: fixed;
-            left: 20px; bottom: 20px;
-            width: 230px;
+            left: 20px; bottom: 80px;
+            width: 220px;
             z-index: 50; display: flex; flex-direction: column;
             pointer-events: auto;
-            gap: 4px;
+            gap: 2px;
         }
-        .queue-list { overflow: hidden; }
-
         .queue-item {
             display: flex; align-items: center; gap: 8px;
-            padding: 3px 10px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(6px);
+            border-radius: 10px;
             opacity: 0; transform: translateX(-8px);
             transition: opacity 0.35s ease, transform 0.35s cubic-bezier(.34,1.56,.64,1);
         }
@@ -104,34 +105,36 @@
         }
 
         .q-num {
-            width: 16px; height: 16px;
-            font-size: 10px; font-weight: 700; color: #c2185b;
-            background: rgba(255, 182, 213, 0.55);
+            width: 18px; height: 18px;
+            font-size: 11px; font-weight: 700; color: #fff;
+            background: #e891af;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
         .queue-item.current .q-num {
-            background: #ff6b9d; color: #fff;
+            background: #ff4d8b;
             animation: breathe 2.2s ease-in-out infinite;
         }
         @keyframes breathe {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,157,0.45); }
-            50%      { box-shadow: 0 0 0 4px rgba(255,107,157,0); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,77,139,0.5); }
+            50%      { box-shadow: 0 0 0 5px rgba(255,77,139,0); }
         }
 
         .q-song {
             flex: 1; min-width: 0;
-            font-size: 13px; font-weight: 500; color: #6a1b4a;
+            font-size: 14px; font-weight: 600; color: #3d1027;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.6);
         }
         .q-user {
-            font-size: 11px; color: #ad1457; opacity: 0.55;
+            font-size: 11px; color: #7a2a4a; opacity: 0.75;
             flex-shrink: 0;
         }
         .queue-empty {
-            text-align: center; padding: 6px 10px;
-            font-size: 12px; color: #ad1457; opacity: 0.5;
+            text-align: center; padding: 8px 10px;
+            font-size: 13px; color: #c2185b; opacity: 0.7;
+            background: rgba(255,255,255,0.45); border-radius: 10px;
         }
     </style>
 </head>
