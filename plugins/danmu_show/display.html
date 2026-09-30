@@ -85,6 +85,11 @@
         /* 紫色：礼物 / SC / 开通舰长 */
         .bg-purple { background: rgba(80, 45, 150, 0.65); border: 1px solid rgba(160,120,255,0.25); }
 
+        .danmu-item .uname {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
         /* ===== 名字颜色（按舰长等级分四档身份）===== */
         /* 灰色 = 普通观众（无舰长等级，含粉丝牌用户）*/
         .uname-rank-gray   { color: #b0b0b8; }
@@ -177,7 +182,7 @@
 
                 // 2. 用户名（颜色按身份）
                 const mark = document.createElement('span');
-                mark.className = rankClass(msg);
+                mark.className = 'uname ' + rankClass(msg);
                 mark.textContent = (msg['用户名'] || '') + ':';
                 div.appendChild(mark);
 
