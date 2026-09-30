@@ -3,113 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>示例插件</title>
+    <title>弹幕覆盖层</title>
     <style>
-        body {
-            margin: 0;
-            padding: 20px;
-            background: transparent;
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: #fff;
-        }
-        .message-item {
-            padding: 5px 10px;
-            margin: 3px 0;
-            background: rgba(15, 52, 96, 0.5);
-            border-radius: 4px;
-            font-size: 13px;
-            white-space: nowrap;
+        /* 关键：真透明，不能有任何可见背景 */
+        html, body {
+            margin: 0; padding: 0;
+            background: transparent !important;
             overflow: hidden;
-            text-overflow: ellipsis;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
         }
+
+        /* 滚动容器：覆盖整个窗口 */
+        .scroll-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* 每条弹幕：绝对定位，从右往左动画 */
+        .danmu-item {
+            position: absolute;
+            white-space: nowrap;
+            pointer-events: none;       /* 穿透点击 + WA_TransparentForMouseEvents 双重保险 */
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 700;
+            text-shadow:
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000,
+                0 0 8px rgba(0,0,0,0.7);
+            will-change: transform;
+        }
+
+        .danmu-item.type-gift    { color: #ffd27a; }   /* 礼物暖黄 */
+        .danmu-item.type-anchor  { color: #ff6b6b; }   /* 主播红 */
+        .danmu-item.type-captain { color: #9f7aea; }   /* 舰长紫 */
+        .danmu-item.type-interact{ color: #74b9ff; }   /* 互动蓝 */
+
+        .danmu-item .uname {
+            color: #ffeaa7;
+            margin-right: 6px;
+            opacity: 0.85;
+            font-size: 20px;
+        }
+
+        /* 加载提示（首次连接前短暂显示） */
+        .tip {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.35);
+            font-size: 14px; font-weight: 400;
+            letter-spacing: 2px;
+            user-select: none;
+            transition: opacity 0.6s;
+        }
+        .tip.hidden { opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div class="message-list" id="messageList"></div>
+    <div class="scroll-stage" id="stage"></div>
+    <div class="tip" id="tip">等待消息…</div>
 
     <script>
-        const _parts = window.location.pathname.split('/').filter(Boolean);
-        const ROOM_ID = _parts[1] || null;
-        const PLUGIN_NAME = _parts[3] || null;
-        const MAX_MESSAGES = 100;
-        let config = null;
+        (function() {
+            const _parts = location.pathname.split('/').filter(Boolean);
+            const ROOM_ID = _parts[1] || null;
+            const PLUGIN_NAME = _parts[3] || null;
 
-        async function loadConfig() {
-            if (!ROOM_ID) return;
-            try {
-                const resp = await fetch(`/rooms/${ROOM_ID}/plugins`);
-                const data = await resp.json();
-                if (data.success && data.data) {
-                    const pluginData = data.data.find(p => p.name === PLUGIN_NAME);
-                    if (pluginData) {
-                        config = pluginData.config;
-                    }
-                }
-            } catch (e) {}
-        }
+            // 运行时配置（初始默认，从 config.json 异步覆盖）
+            let CFG = {
+                minSpeed:   8,       // 最慢（秒，值越大越慢）
+                maxSpeed:  16,       // 最快
+                fontSize:  22,
+                marginY:    8,
+                topReserve: 0,
+                // 类型开关（从 config.json 读取）
+                types: { '弹幕': true, '礼物': true, '互动': false, '舰长': false },
+            };
 
-        function shouldShowMessage(msg) {
-            if (!config) return true;
-            const type = msg.消息类型;
-            if (type === '弹幕' && config.弹幕) return true;
-            if (type === '互动' && config.互动) return true;
-            if (type === '礼物' && config.礼物) return true;
-            if (type === '舰长' && config.舰长) return true;
-            return false;
-        }
-
-        function formatMessage(msg) {
-            const type = msg.消息类型;
-            let content = '';
-
-            if (type === '弹幕') {
-                content = msg.弹幕内容 || '';
-            } else if (type === '礼物') {
-                content = (msg.礼物名称 || '礼物') + ' x' + (msg.礼物数量 || 1);
-            } else if (type === '互动') {
-                content = msg.动作 || '';
-            } else if (type === '舰长') {
-                content = '开通' + (msg.舰长等级 || '舰长') + ' x' + (msg.开通数量 || 1);
-            }
-
-            return `[${type}] ${msg.用户名 || '未知'}: ${content}`;
-        }
-
-        function addMessage(msg) {
-            const item = document.createElement('div');
-            item.className = 'message-item';
-            item.textContent = formatMessage(msg);
-
-            const list = document.getElementById('messageList');
-            list.insertBefore(item, list.firstChild);
-
-            while (list.children.length > MAX_MESSAGES) {
-                list.removeChild(list.lastChild);
-            }
-        }
-
-        function connectSSE() {
-            if (!ROOM_ID) return;
-            const url = `/api/events?plugin=${PLUGIN_NAME}&room_id=${ROOM_ID}`;
-            const eventSource = new EventSource(url);
-
-            eventSource.onmessage = function(event) {
+            // ===== 加载插件 config.json（类型开关）=====
+            async function loadPluginConfig() {
                 try {
-                    const msg = JSON.parse(event.data);
-                    if (shouldShowMessage(msg)) {
-                        addMessage(msg);
-                    }
-                } catch (e) {}
-            };
+                    const r = await fetch(`/rooms/${ROOM_ID}/plugins/${PLUGIN_NAME}/config`);
+                    if (!r.ok) return;
+                    const cfg = await r.json();
+                    // 兼容 config.json 的字段名
+                    if (cfg['弹幕'] !== undefined)   CFG.types['弹幕']   = !!cfg['弹幕'];
+                    if (cfg['礼物'] !== undefined)   CFG.types['礼物']   = !!cfg['礼物'];
+                    if (cfg['互动'] !== undefined)   CFG.types['互动']   = !!cfg['互动'];
+                    if (cfg['舰长'] !== undefined)   CFG.types['舰长']   = !!cfg['舰长'];
+                } catch (e) { /* config 接口不存在或无权限，用默认值 */ }
+            }
+            loadPluginConfig();
 
-            eventSource.onerror = function() {
-                setTimeout(connectSSE, 3000);
-            };
-        }
+            // ===== 轨道管理（固定容量池）=====
+            const TRACK_CAP = 10;
+            const tracks = new Array(TRACK_CAP).fill(0);  // 0=空闲, >0=占用秒数
 
-        loadConfig();
-        connectSSE();
+            function pickTrack() {
+                for (let i = 0; i < TRACK_CAP; i++) {
+                    if (tracks[i] === 0) { tracks[i] = CFG.minSpeed; return i; }
+                }
+                return -1;  // 满了就跳过（丢弃）
+            }
+            function release(track) { tracks[track] = 0; }
+
+            // ===== 消息 → DOM =====
+            function format(msg) {
+                const t = msg['消息类型'];
+                const u = msg['用户名'] || '?';
+                let c = '';
+                if (t === '弹幕')     c = msg['弹幕内容'] || '';
+                else if (t === '礼物') c = `${msg['礼物名称'] || '礼物'} ×${msg['礼物数量'] || 1}`;
+                else if (t === '互动') c = msg['动作'] || '';
+                else if (t === '舰长') c = `开通 ${msg['舰长等级'] || '舰长'} ×${msg['开通数量'] || 1}`;
+                return { text: `${u}: ${c}`, type: t };
+            }
+
+            let _tipHidden = false;
+            function spawnDanmu(msg) {
+                if (!ROOM_ID) return;
+
+                // 类型过滤（尊重 config.json 的开关）
+                const t = msg['消息类型'];
+                if (!CFG.types[t]) return;
+
+                const fmt = format(msg);
+                if (!fmt.text.trim()) return;
+
+                const track = pickTrack();
+                if (track < 0) return;  // 轨道池满
+
+                // 隐藏加载提示
+                if (!_tipHidden) { _tipHidden = true; document.getElementById('tip').classList.add('hidden'); }
+
+                const div = document.createElement('div');
+                div.className = 'danmu-item';
+                if (fmt.type === '礼物') div.classList.add('type-gift');
+                if (fmt.type === '舰长') div.classList.add('type-captain');
+                if (fmt.type === '互动') div.classList.add('type-interact');
+
+                // 用户名单独着色
+                const mark = document.createElement('span');
+                mark.className = 'uname';
+                mark.textContent = (msg['用户名'] || '') + ':';
+                div.appendChild(mark);
+                div.appendChild(document.createTextNode(' ' + (fmt.text.split(':')[1] || fmt.text)));
+
+                document.getElementById('stage').appendChild(div);
+
+                requestAnimationFrame(() => {
+                    const stage = document.getElementById('stage');
+                    const stageW = stage.clientWidth;
+                    const divW = div.offsetWidth;
+
+                    const top = CFG.topReserve + track * (CFG.fontSize + CFG.marginY);
+                    div.style.top = top + 'px';
+                    div.style.left = stageW + 'px';
+
+                    const distance = stageW + divW + 200;
+                    const dur = CFG.minSpeed + Math.random() * (CFG.maxSpeed - CFG.minSpeed);
+                    tracks[track] = dur;
+
+                    div.animate(
+                        [{ transform: 'translateX(0)' }, { transform: `translateX(-${distance}px)` }],
+                        { duration: dur * 1000, easing: 'linear', fill: 'forwards' }
+                    ).onfinish = () => {
+                        div.remove();
+                        release(track);
+                    };
+                });
+            }
+
+            // ===== SSE 连接 =====
+            function connectSSE() {
+                if (!ROOM_ID) return;
+                const es = new EventSource(`/api/events?plugin=${PLUGIN_NAME}&room_id=${ROOM_ID}`);
+                es.onmessage = ev => {
+                    try {
+                        const msg = JSON.parse(ev.data);
+                        spawnDanmu(msg);
+                    } catch (e) { /* 忽略解析失败 */ }
+                };
+                es.onerror = () => setTimeout(connectSSE, 2000);
+            }
+
+            connectSSE();
+        })();
     </script>
 </body>
 </html>

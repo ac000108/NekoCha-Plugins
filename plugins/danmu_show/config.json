@@ -1,8 +1,9 @@
 {
     "name": "弹幕显示",
-    "version": "1.0.21",
+    "version": "1.0.22",
     "description": "滚动显示直播间各种消息",
     "mode": "off",
+    "display_mode": "floating_scroll",
     "弹幕": true,
     "互动": false,
     "礼物": true,

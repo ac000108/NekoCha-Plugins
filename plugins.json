@@ -1,5 +1,5 @@
 {
-  "updated_at": 1789844776,
+  "updated_at": 1790752353,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -40,23 +40,23 @@
     {
       "name": "danmu_show",
       "display_name": "弹幕显示",
-      "version": "1.0.21",
+      "version": "1.0.22",
       "description": "滚动显示直播间各种消息",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "1e0822bd64a16f526f09a0819cd22c27eebafc14239c0eb0c248cc5ac8fdcd8e",
-          "size": 222
+          "sha256": "c94277d108f64c3522346f014741191acc1ce17e8767943f2afefcd4ce690f27",
+          "size": 828
         },
         {
           "path": "config.json",
-          "sha256": "4630b6e4aa154d76e906a088010c2222b9efeb46adffe86b07b433baf6470d57",
-          "size": 221
+          "sha256": "454e5ab174832f41914815dd486e137685caeed2cda309eacb9706ca5dcbe230",
+          "size": 261
         },
         {
           "path": "display.html",
-          "sha256": "722ad84784a3a19c881979c2d2a1e74c8d81f9b52cb485aa2e9d668e86ca50a0",
-          "size": 3797
+          "sha256": "5299737f73337a2fa298c00916f13c24cf2fe813ab1a0a35b12da1b6f9e01b59",
+          "size": 8024
         }
       ]
     },
@@ -86,7 +86,7 @@
     {
       "name": "gift_show",
       "display_name": "礼物展示",
-      "version": "1.1.28",
+      "version": "1.1.29",
       "description": "每秒查询数据库，滚动展示最新礼物记录",
       "files": [
         {
@@ -96,8 +96,8 @@
         },
         {
           "path": "config.json",
-          "sha256": "53b0384408a6329d301997659f392c4ad8464ab14e33efb0fc614136a9fa142b",
-          "size": 351
+          "sha256": "867a47494907d6ed7c088c0bff23c54f1ad5b6bdd0e1b47abb9a88b2e40d2c1b",
+          "size": 392
         },
         {
           "path": "display.html",
@@ -127,7 +127,7 @@
     {
       "name": "history_query",
       "display_name": "历史查询",
-      "version": "1.0.30",
+      "version": "1.0.31",
       "description": "查询历史弹幕、礼物等消息记录",
       "files": [
         {
@@ -137,8 +137,8 @@
         },
         {
           "path": "config.json",
-          "sha256": "c3e62578ae8250571f78451c897f4b9dc9c0bfec3db67363c9a87004bb80de5b",
-          "size": 144
+          "sha256": "fb19491fc65d6822734d4bc17cb38203bfb3cb9e114955206574a078e112a019",
+          "size": 176
         },
         {
           "path": "display.html",
@@ -173,7 +173,7 @@
     {
       "name": "lottery",
       "display_name": "抽签插件",
-      "version": "1.0.25",
+      "version": "1.0.26",
       "description": "弹幕抽签功能，展示窗口最佳260x450",
       "files": [
         {
@@ -183,8 +183,8 @@
         },
         {
           "path": "config.json",
-          "sha256": "df7797277c0fca1448b11a56294f2f1669809ccc25f0ad98e2045ebb4a469ef3",
-          "size": 1533
+          "sha256": "4966c2a6a7820056727335da3e91990c93496eb9eeec78c0ed8f1c3c88e1e5c0",
+          "size": 1574
         },
         {
           "path": "display.html",
@@ -268,7 +268,7 @@
     {
       "name": "song_request",
       "display_name": "点歌姬",
-      "version": "3.0.42",
+      "version": "3.0.43",
       "description": "观众发送弹幕点歌，支持免费次数、冷却时间、盲盒续杯等权限控制。\n\n【点歌指令】\n随机点歌 → 从歌单随机选一首\n点歌 <歌名> → 指定歌单内歌曲",
       "files": [
         {
@@ -278,8 +278,8 @@
         },
         {
           "path": "config.json",
-          "sha256": "63f5ac1cff8e26eb4ad2613db13c6db0661234c7d07a1424966460ac76dacff4",
-          "size": 2433
+          "sha256": "e00a78575bf31ba11de672a6eb594d7b4600af9e72037be1d7904321684aead9",
+          "size": 2474
         },
         {
           "path": "display.html",
