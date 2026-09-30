@@ -19,12 +19,12 @@
             overflow: hidden;
             padding: 0 8px 8px 8px;
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
+            justify-content: flex-end;
             gap: 6px;
             pointer-events: none;
         }
 
-        /* ============ 气泡基类 ============ */
         .danmu-item {
             display: inline-flex;
             align-items: center;
@@ -51,7 +51,7 @@
             width: 20px; height: 20px;
             border-radius: 50%;
             object-fit: cover;
-            border: 1.5px solid rgba(255,255,255,0.7);
+            border: 1.5px solid rgba(255,255,255,0.5);
             flex-shrink: 0;
         }
 
@@ -59,28 +59,12 @@
             width: 28px; height: 28px;
             object-fit: contain;
             flex-shrink: 0;
-            filter: drop-shadow(0 0 3px rgba(255,200,100,0.5));
         }
 
         .danmu-item .emoji {
             height: 24px;
             object-fit: contain;
             flex-shrink: 0;
-        }
-
-        .danmu-item .uname {
-            opacity: 0.9;
-            font-size: 15px;
-        }
-
-        /* 类型角标（文字标签）*/
-        .danmu-item .tag {
-            font-size: 11px;
-            padding: 1px 6px;
-            border-radius: 8px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            opacity: 0.92;
         }
 
         .danmu-item .sc-price {
@@ -91,43 +75,21 @@
             font-weight: 700;
         }
 
-        /* ============ 1. 纯文字弹幕 ============ */
-        .danmu-item.type-text  { background: rgba(20,20,28,0.60); }
+        /* ===== 背景两类 ===== */
+        /* 深色：文字弹幕 / 表情弹幕 / 互动 */
+        .bg-dark  { background: rgba(22, 22, 30, 0.62); }
+        /* 紫色：礼物 / SC / 开通舰长 */
+        .bg-purple { background: rgba(80, 45, 150, 0.65); border: 1px solid rgba(160,120,255,0.25); }
 
-        /* ============ 2. 表情包弹幕 ============ */
-        .danmu-item.type-emoji { background: rgba(80,40,120,0.55); }
-        .danmu-item.type-emoji .tag { background: rgba(180,120,255,0.85); color: #fff; }
-
-        /* ============ 3. 礼物 ============ */
-        .danmu-item.type-gift  { background: rgba(160,100,20,0.55); }
-        .danmu-item.type-gift .tag { background: rgba(255,200,80,0.9); color: #3a2400; }
-
-        /* ============ 4. 醒目留言 SC ============ */
-        .danmu-item.type-sc    {
-            background: linear-gradient(135deg, rgba(40,120,220,0.70), rgba(80,180,255,0.65));
-            font-weight: 700;
-            font-size: 18px;
-            border: 1px solid rgba(120,200,255,0.35);
-        }
-        .danmu-item.type-sc .tag { background: rgba(255,255,255,0.25); color: #fff; }
-
-        /* ============ 5. 舰长三级 ============ */
-        .danmu-item.type-captain   { background: rgba(60,30,140,0.65); }   /* 舰长：蓝紫 */
-        .danmu-item.type-captain .tag { background: rgba(130,90,255,0.9); color: #fff; }
-
-        .danmu-item.type-admiral   { background: rgba(160,80,30,0.70); }   /* 提督：金橙 */
-        .danmu-item.type-admiral .tag { background: rgba(255,170,60,0.95); color: #3a1e00; }
-
-        .danmu-item.type-governor  {                                            /* 总督：暗红+金边 */
-            background: linear-gradient(135deg, rgba(180,30,40,0.75), rgba(240,60,80,0.65));
-            border: 1px solid rgba(255,220,100,0.5);
-            box-shadow: 0 0 8px rgba(255,60,80,0.35), inset 0 0 6px rgba(255,220,100,0.15);
-        }
-        .danmu-item.type-governor .tag { background: rgba(255,220,100,0.95); color: #5a1010; }
-
-        /* ============ 6. 进入互动 ============ */
-        .danmu-item.type-interact { background: rgba(30,70,120,0.55); }
-        .danmu-item.type-interact .tag { background: rgba(120,180,240,0.85); color: #fff; }
+        /* ===== 名字颜色（按舰长等级分四档身份）===== */
+        /* 灰色 = 普通观众（无舰长等级，含粉丝牌用户）*/
+        .uname-rank-gray   { color: #b0b0b8; }
+        /* 蓝色 = 舰长 */
+        .uname-rank-blue   { color: #6fb6ff; }
+        /* 紫色 = 提督 */
+        .uname-rank-purple { color: #c79bff; }
+        /* 金色 = 总督 */
+        .uname-rank-gold   { color: #ffd86b; }
 
         .tip {
             position: absolute;
@@ -152,7 +114,6 @@
             const PLUGIN_NAME = _parts[3] || null;
 
             let CFG = {
-                // 类型开关（新增 '醒目留言'）
                 types: { '弹幕': true, '礼物': true, '醒目留言': true, '舰长': true, '互动': false },
                 maxLines: 30,
             };
@@ -172,64 +133,45 @@
             let _tipHidden = false;
 
             /**
-             * 决定气泡的精细分类 class
-             * 文字弹幕 / 表情包弹幕 / 礼物 / SC / 总督 / 提督 / 舰长 / 互动
+             * 判断身份等级 → 名字颜色
+             * 依赖 message_parser 产出的 '舰长等级' 字段: '' / '舰长' / '提督' / '总督'
              */
-            function classify(msg) {
-                const t = msg['消息类型'];
-                if (t === '弹幕')    return msg['图片链接'] ? 'emoji' : 'text';
-                if (t === '礼物')    return 'gift';
-                if (t === '醒目留言') return 'sc';
-                if (t === '互动')    return 'interact';
-                if (t === '舰长') {
-                    const lv = msg['舰长等级'] || '';
-                    if (lv === '总督') return 'governor';
-                    if (lv === '提督') return 'admiral';
-                    return 'captain';   // 舰长 / 未知
-                }
-                return 'text';
+            function rankClass(msg) {
+                const lv = msg['舰长等级'] || '';
+                if (lv === '总督') return 'uname-rank-gold';
+                if (lv === '提督') return 'uname-rank-purple';
+                if (lv === '舰长') return 'uname-rank-blue';
+                return 'uname-rank-gray';   // 空 = 普通观众（含粉丝牌）
             }
 
-            const TAG_TEXT = {
-                text:     '',
-                emoji:    '表情',
-                gift:     '礼物',
-                sc:       'SC',
-                interact: '进入',
-                captain:  '舰长',
-                admiral:  '提督',
-                governor: '总督',
-            };
+            /**
+             * 判断背景类别
+             * 紫色: 礼物 / SC / 开通舰长
+             * 深色: 文字弹幕 / 表情弹幕 / 互动
+             */
+            function bgClass(msg) {
+                const t = msg['消息类型'];
+                if (t === '礼物' || t === '醒目留言' || t === '舰长') return 'bg-purple';
+                return 'bg-dark';
+            }
 
             function buildBubble(msg) {
-                const cls = classify(msg);
                 const t = msg['消息类型'];
                 const div = document.createElement('div');
-                div.className = 'danmu-item type-' + cls;
+                div.className = 'danmu-item ' + bgClass(msg);
 
-                // 1. 类型角标（最前面）
-                const tag = TAG_TEXT[cls];
-                if (tag) {
-                    const s = document.createElement('span');
-                    s.className = 'tag';
-                    s.textContent = tag;
-                    div.appendChild(s);
+                // 1. 头像
+                const avatar = msg['头像URL'];
+                if (avatar) {
+                    const img = document.createElement('img');
+                    img.className = 'avatar';
+                    img.src = avatar;
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = () => img.remove();
+                    div.appendChild(img);
                 }
 
-                // 2. 头像（舰长/SC不显示，太啰嗦）
-                if (cls !== 'governor' && cls !== 'admiral' && t !== '醒目留言') {
-                    const avatar = msg['头像URL'];
-                    if (avatar) {
-                        const img = document.createElement('img');
-                        img.className = 'avatar';
-                        img.src = avatar;
-                        img.referrerPolicy = 'no-referrer';
-                        img.onerror = () => img.remove();
-                        div.appendChild(img);
-                    }
-                }
-
-                // 3. 礼物图标
+                // 2. 礼物图标
                 if (t === '礼物' && msg['礼物图片URL']) {
                     const img = document.createElement('img');
                     img.className = 'gift-icon';
@@ -239,19 +181,13 @@
                     div.appendChild(img);
                 }
 
-                // 4. 用户名（总督/提督/舰长/SC 用高亮色，普通弹幕用浅黄色）
+                // 3. 用户名（颜色按身份）
                 const mark = document.createElement('span');
-                mark.className = 'uname';
-                if (cls === 'governor')      { mark.style.color = '#ffd86b'; }
-                else if (cls === 'admiral')  { mark.style.color = '#ffb066'; }
-                else if (cls === 'captain')  { mark.style.color = '#b39ddb'; }
-                else if (t === '醒目留言')   { mark.style.color = '#ffffff'; }
-                else if (t === '礼物')       { mark.style.color = '#ffe082'; }
-                else                          { mark.style.color = '#ffeaa7'; }
+                mark.className = rankClass(msg);
                 mark.textContent = (msg['用户名'] || '') + ':';
                 div.appendChild(mark);
 
-                // 5. 正文
+                // 4. 正文
                 if (t === '弹幕') {
                     const content = msg['弹幕内容'] || '';
                     const emojiUrl = msg['图片链接'];
@@ -269,9 +205,8 @@
                 } else if (t === '互动') {
                     div.appendChild(document.createTextNode(' ' + (msg['动作'] || '')));
                 } else if (t === '舰长') {
-                    div.appendChild(document.createTextNode(` 开通 ${msg['开通数量'] || 1} ${msg['舰长等级'] || '舰长'}`));
+                    div.appendChild(document.createTextNode(` 开通${msg['开通数量'] || 1} ${msg['舰长等级'] || '舰长'}`));
                 } else if (t === '醒目留言') {
-                    // SC: 价格标签 + 正文
                     const price = msg['价格'];
                     if (price) {
                         const p = document.createElement('span');
