@@ -26,9 +26,6 @@
         }
 
         .danmu-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
             padding: 4px 10px 4px 6px;
             border-radius: 16px;
             white-space: normal;
@@ -51,12 +48,25 @@
             to   { opacity: 1; transform: translateY(0); }
         }
 
+        /* 头像+名字组：float 到左侧永远占第一行，不换行 */
+        .danmu-item .identity {
+            float: left;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-right: 4px;
+            line-height: 1.2;
+        }
+
         .danmu-item .avatar {
             width: 20px; height: 20px;
             border-radius: 50%;
             object-fit: cover;
             border: 1.5px solid rgba(255,255,255,0.5);
             flex-shrink: 0;
+            vertical-align: middle;
         }
 
         .danmu-item .gift-icon {
@@ -169,7 +179,10 @@
                 const div = document.createElement('div');
                 div.className = 'danmu-item ' + bgClass(msg);
 
-                // 1. 头像
+                // ===== 头像+名字 组（float 左侧，永远不换行，独占一行左侧）=====
+                const identity = document.createElement('span');
+                identity.className = 'identity';
+
                 const avatar = msg['头像URL'];
                 if (avatar) {
                     const img = document.createElement('img');
@@ -177,16 +190,17 @@
                     img.src = avatar;
                     img.referrerPolicy = 'no-referrer';
                     img.onerror = () => img.remove();
-                    div.appendChild(img);
+                    identity.appendChild(img);
                 }
 
-                // 2. 用户名（颜色按身份）
                 const mark = document.createElement('span');
                 mark.className = 'uname ' + rankClass(msg);
                 mark.textContent = (msg['用户名'] || '') + ':';
-                div.appendChild(mark);
+                identity.appendChild(mark);
 
-                // 3. 礼物图标（放在用户名后，正文前）
+                div.appendChild(identity);
+
+                // ===== 正文区（inline flow，自然折行，被 float 挤压到 identity 右侧）=====
                 if (t === '礼物' && msg['礼物图片URL']) {
                     const img = document.createElement('img');
                     img.className = 'gift-icon';
@@ -196,7 +210,6 @@
                     div.appendChild(img);
                 }
 
-                // 4. 正文
                 if (t === '弹幕') {
                     const content = msg['弹幕内容'] || '';
                     const emojiUrl = msg['图片链接'];
@@ -210,7 +223,13 @@
                         div.appendChild(img);
                     }
                 } else if (t === '礼物') {
-                    div.appendChild(document.createTextNode(` ${msg['礼物名称'] || '礼物'} ×${msg['礼物数量'] || 1}`));
+                    const name = msg['礼物名称'] || '礼物';
+                    const num = msg['礼物数量'] || 1;
+                    const totalCoin = msg['总价值'] || 0;
+                    const cny = (totalCoin / 10).toFixed(1);   // B站 10金瓜子=1元
+                    let txt = ` ${name} ×${num}`;
+                    if (totalCoin > 0) txt += `  CNY ${cny}`;
+                    div.appendChild(document.createTextNode(txt));
                 } else if (t === '互动') {
                     div.appendChild(document.createTextNode(' ' + (msg['动作'] || '')));
                 } else if (t === '舰长') {
