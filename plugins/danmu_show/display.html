@@ -221,15 +221,16 @@
                     } else if (content) {
                         // 普通弹幕：把 content 里的 [xxx] 占位符替换成 inline 表情图
                         if (Object.keys(inlineEmots).length > 0) {
-                            const regex = /\[([^\]]+)\]/g;
+                            // dict key 带方括号 "[比心]"，所以用 m[0]（完整匹配带方括号）查
+                            const regex = /\[[^\]]+\]/g;
                             let lastIdx = 0;
                             let m;
                             // 如果整条 content 只有一个 inline 表情（如 "[dog]"），只显示图
-                            const wholeMatch = content.match(/^\[([^\]]+)\]$/);
-                            if (wholeMatch && inlineEmots[wholeMatch[1]]) {
+                            const wholeMatch = content.match(/^\[[^\]]+\]$/);
+                            if (wholeMatch && inlineEmots[wholeMatch[0]]) {
                                 const img = document.createElement('img');
                                 img.className = 'inline-emot';
-                                img.src = inlineEmots[wholeMatch[1]];
+                                img.src = inlineEmots[wholeMatch[0]];
                                 img.referrerPolicy = 'no-referrer';
                                 img.onerror = () => img.remove();
                                 div.appendChild(img);
@@ -241,8 +242,8 @@
                                             ' ' + content.slice(lastIdx, m.index)
                                         ));
                                     }
-                                    // 替换成表情图（如果有）
-                                    const emotUrl = inlineEmots[m[1]];
+                                    // 替换成表情图（如果有）—— m[0] 是 "[比心]" 完整 key
+                                    const emotUrl = inlineEmots[m[0]];
                                     if (emotUrl) {
                                         const img = document.createElement('img');
                                         img.className = 'inline-emot';
