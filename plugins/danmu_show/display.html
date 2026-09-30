@@ -270,7 +270,7 @@
                     const name = msg['礼物名称'] || '礼物';
                     const num = msg['礼物数量'] || 1;
                     const totalCoin = msg['总价值'] || 0;
-                    const cny = (totalCoin / 10).toFixed(1);   // B站 10金瓜子=1元
+                    const cny = (totalCoin / 1000).toFixed(2);   // B站 1000金瓜子=1元
                     let txt = ` ${name} ×${num}`;
                     if (totalCoin > 0) txt += `  CNY ${cny}`;
                     div.appendChild(document.createTextNode(txt));

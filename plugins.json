@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790762682,
+  "updated_at": 1790762905,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -40,7 +40,7 @@
     {
       "name": "danmu_show",
       "display_name": "弹幕显示",
-      "version": "1.0.29",
+      "version": "1.0.30",
       "description": "滚动显示直播间各种消息",
       "files": [
         {
@@ -50,13 +50,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "347bd4648024fb0103b924439a6dcc28d1003f7c6f69f95c7b8e2f7a13ebd114",
+          "sha256": "5f1ace511b5b2d23b2a3376daa7a22e6e6516d097911f3a53d94720dd5950c8e",
           "size": 261
         },
         {
           "path": "display.html",
-          "sha256": "7b2f137ee3dc1ac032f56c0f0d5a592a71515fa6f564a85697f648bf73caf71c",
-          "size": 13382
+          "sha256": "71dd44c1b20840fde7df818ad8e31551df93d1b1fc890a952ab153d8eb52ec8e",
+          "size": 13386
         }
       ]
     },
