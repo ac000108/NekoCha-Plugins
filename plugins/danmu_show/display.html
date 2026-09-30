@@ -81,6 +81,15 @@
             flex-shrink: 0;
         }
 
+        /* inline 小表情（普通弹幕里的 [dog] 替换图） */
+        .danmu-item .inline-emot {
+            height: 1.4em;
+            width: auto;
+            vertical-align: middle;
+            display: inline-block;
+            object-fit: contain;
+        }
+
         .danmu-item .sc-price {
             font-size: 13px;
             padding: 1px 6px;
@@ -212,8 +221,9 @@
 
                 if (t === '弹幕') {
                     const content = msg['弹幕内容'] || '';
-                    const emojiUrl = msg['图片链接'];
-                    if (content) div.appendChild(document.createTextNode(' ' + content));
+                    const emojiUrl = msg['图片链接'];        // 表情弹幕（大表情 bulge_display）
+                    const inlineEmots = msg['inline表情'] || {};
+                    // 表情弹幕：整条就是大表情图，跳过 content
                     if (emojiUrl) {
                         const img = document.createElement('img');
                         img.className = 'emoji';
@@ -221,6 +231,53 @@
                         img.referrerPolicy = 'no-referrer';
                         img.onerror = () => img.remove();
                         div.appendChild(img);
+                    } else if (content) {
+                        // 普通弹幕：把 content 里的 [xxx] 占位符替换成 inline 表情图
+                        if (Object.keys(inlineEmots).length > 0) {
+                            const regex = /\[([^\]]+)\]/g;
+                            let lastIdx = 0;
+                            let m;
+                            // 如果整条 content 只有一个 inline 表情（如 "[dog]"），只显示图
+                            const wholeMatch = content.match(/^\[([^\]]+)\]$/);
+                            if (wholeMatch && inlineEmots[wholeMatch[1]]) {
+                                const img = document.createElement('img');
+                                img.className = 'inline-emot';
+                                img.src = inlineEmots[wholeMatch[1]];
+                                img.referrerPolicy = 'no-referrer';
+                                img.onerror = () => img.remove();
+                                div.appendChild(img);
+                            } else {
+                                while ((m = regex.exec(content)) !== null) {
+                                    // 占位符前的纯文字
+                                    if (m.index > lastIdx) {
+                                        div.appendChild(document.createTextNode(
+                                            ' ' + content.slice(lastIdx, m.index)
+                                        ));
+                                    }
+                                    // 替换成表情图（如果有）
+                                    const emotUrl = inlineEmots[m[1]];
+                                    if (emotUrl) {
+                                        const img = document.createElement('img');
+                                        img.className = 'inline-emot';
+                                        img.src = emotUrl;
+                                        img.referrerPolicy = 'no-referrer';
+                                        img.onerror = () => img.remove();
+                                        div.appendChild(img);
+                                    } else {
+                                        div.appendChild(document.createTextNode(m[0]));
+                                    }
+                                    lastIdx = regex.lastIndex;
+                                }
+                                // 末尾剩余文字
+                                if (lastIdx < content.length) {
+                                    div.appendChild(document.createTextNode(
+                                        ' ' + content.slice(lastIdx)
+                                    ));
+                                }
+                            }
+                        } else {
+                            div.appendChild(document.createTextNode(' ' + content));
+                        }
                     }
                 } else if (t === '礼物') {
                     const name = msg['礼物名称'] || '礼物';
