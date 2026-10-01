@@ -133,3 +133,64 @@ class NeteasePlayerPlugin(BasePlugin):
 
     def _notify_reply(self, text: str):
         self.send_danmu(text)
+
+    # ========== 对外 call 方法（供 WebUI 手动触发）==========
+
+    def search(self, keyword: str, limit: int = 5) -> dict:
+        """WebUI 搜索按钮调用：返回网易云搜索结果列表"""
+        from . import netease_api
+        songs = netease_api.search(keyword, limit=limit)
+        return {"ok": True, "keyword": keyword, "count": len(songs), "songs": songs}
+
+    def play_by_id(self, song_id) -> dict:
+        """WebUI 直接播放按钮：用网易云 song_id 放歌"""
+        from . import netease_api
+        try:
+            sid = int(song_id)
+            play = netease_api.get_play_url(sid, level="exhigh")
+            if not play or not play.get("url"):
+                return {"ok": False, "msg": "拿不到直链（可能是 VIP 歌，解灰失败）"}
+            lyric = netease_api.get_lyric(sid)
+            detail = netease_api.get_song_detail(sid)
+            self._sse_broadcast({
+                "cmd": "netease_play",
+                "data": {
+                    "song_id": sid,
+                    "name": detail.get("name", ""),
+                    "artist": detail.get("artist", ""),
+                    "cover": detail.get("cover", ""),
+                    "url": play["url"],
+                    "lrc": lyric.get("lrc", ""),
+                    "tlyric": lyric.get("tlyric", ""),
+                    "yrc": lyric.get("yrc", ""),
+                    "fee": play.get("fee", -1),
+                    "is_trial": bool(play.get("freeTrialInfo")),
+                    "unblocked": play.get("unblocked", False),
+                }
+            })
+            return {"ok": True, "msg": "已推送给播放器"}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def play_keyword(self, keyword: str) -> dict:
+        """WebUI 关键词点歌按钮：触发后台点歌流程"""
+        threading.Thread(
+            target=self._handle_point_request,
+            args=(keyword, "WebUI"),
+            daemon=True,
+        ).start()
+        return {"ok": True, "msg": "已触发点歌：" + keyword}
+
+    def status(self) -> dict:
+        """插件状态：供 WebUI / 测试用"""
+        base = super().status()
+        return {
+            **base,
+            "name": self.name,
+            "backend": "pure_python",  # 明确告诉上层：纯 Python，无 Node
+            "api": {
+                "provider": "netease_weapi",
+                "encryption": "pycryptodome_aes_cbc",
+                "deblock": "bodian_kuwo_via_urllib",
+            },
+        }
