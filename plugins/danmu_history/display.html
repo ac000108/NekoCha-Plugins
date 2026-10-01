@@ -14,20 +14,27 @@
 
         .history-stage {
             height: 100%;
-            overflow-y: auto;
+            overflow-y: overlay;   /* Chromium: 叠加式滚动条，不占宽度 */
             overflow-x: hidden;
             padding: 8px 6px 40px 6px;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            /* 隐藏滚动条但保留滚动能力 */
+            /* 标准隐藏 */
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
         .history-stage::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+            background: transparent !important;
+        }
+        .history-stage::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        .history-stage::-webkit-scrollbar-thumb {
+            background: transparent !important;
         }
 
         .danmu-item {
