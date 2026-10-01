@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790830871,
+  "updated_at": 1790831047,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -40,7 +40,7 @@
     {
       "name": "danmu_show",
       "display_name": "弹幕显示",
-      "version": "1.0.32",
+      "version": "1.0.33",
       "description": "滚动显示直播间各种消息",
       "files": [
         {
@@ -50,13 +50,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "2455af3bcf7cac1f582178c72e45c182cc91d3c7d0441a3ccb5d9a37b664883e",
+          "sha256": "f4a59635fd8a395bc499953462c19c77e78f3e10cadc954b48154c784dd3a28b",
           "size": 261
         },
         {
           "path": "display.html",
-          "sha256": "33ccf47852618bb1c299c16f3f70b464ccfcd8f4ebfd52f56aebad98fab1fbd2",
-          "size": 13499
+          "sha256": "e5016ed7eb79d5be8cc3dda1831338152bc024e0330875c76ad6b50483985977",
+          "size": 13481
         }
       ]
     },
@@ -291,7 +291,7 @@
     {
       "name": "danmu_history",
       "display_name": "弹幕历史",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "description": "全屏高度可滚动的弹幕历史回看窗，点击已读、滚轮翻页",
       "files": [
         {
@@ -301,13 +301,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "7b9eae52c3d1cede28a4fe984e2ff3a99633cc05654adb4da9e106f1c9e846f5",
+          "sha256": "36c5577e760b16fc1b50ce393f9f99bcf79d24664619244f87c4b0a235432257",
           "size": 389
         },
         {
           "path": "display.html",
-          "sha256": "29d52a9a477405d77f7915f6f7ca181cb0e3790eba3524018081058c2503eb7a",
-          "size": 22632
+          "sha256": "7964d23f1c23a848a8b478903fcdffe9f1f1072113f0d073f42fcb2fa3a65889",
+          "size": 22614
         }
       ]
     }

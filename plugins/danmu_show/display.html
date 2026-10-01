@@ -283,7 +283,7 @@
                     if (price) {
                         const p = document.createElement('span');
                         p.className = 'sc-price';
-                        p.textContent = '¥' + (price / 10).toFixed(1);
+                        p.textContent = '¥' + price;
                         div.appendChild(p);
                     }
                     div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
