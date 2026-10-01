@@ -14,27 +14,40 @@
 
         .history-stage {
             height: 100%;
-            overflow-y: overlay;   /* Chromium: 叠加式滚动条，不占宽度 */
+            overflow-y: hidden;   /* 彻底隐藏原生滚动条 */
             overflow-x: hidden;
             padding: 8px 6px 40px 6px;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            /* 标准隐藏 */
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            scroll-behavior: auto;
         }
-        .history-stage::-webkit-scrollbar {
-            width: 0 !important;
-            height: 0 !important;
-            display: none !important;
-            background: transparent !important;
+
+        /* 已读状态变灰 */
+        .danmu-item.read {
+            opacity: 0.35;
+            filter: grayscale(0.6);
         }
-        .history-stage::-webkit-scrollbar-track {
-            background: transparent !important;
+        /* 折叠时真正隐藏 */
+        .danmu-item.read.hide {
+            display: none;
         }
-        .history-stage::-webkit-scrollbar-thumb {
-            background: transparent !important;
+
+        /* 折叠摘要（真正占位） */
+        .collapse-summary {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: rgba(22, 22, 30, 0.5);
+            color: rgba(255,255,255,0.35);
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 1px;
+            user-select: none;
+        }
+        .collapse-summary:hover {
+            color: rgba(255,255,255,0.6);
+            background: rgba(40,40,55,0.7);
         }
 
         .danmu-item {
@@ -57,12 +70,6 @@
             filter: grayscale(0.6);
         }
 
-        /* 折叠组 */
-        .collapse-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
         .collapse-summary {
             padding: 2px 8px;
             border-radius: 8px;
@@ -243,14 +250,6 @@
                 return stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 50;
             }
 
-            stage.addEventListener('scroll', () => {
-                _isAtBottom = checkIsAtBottom();
-                if (_isAtBottom && _unreadCount > 0) {
-                    _unreadCount = 0;
-                    updateBadge();
-                }
-            });
-
             function updateBadge() {
                 if (_unreadCount > 0) {
                     unreadBadge.textContent = `↑ ${_unreadCount} 条新消息`;
@@ -283,58 +282,54 @@
 
             // ===== 折叠/展开逻辑 =====
             /**
-             * 折叠规则：连续相邻 + 都是 .read → 合并为一行摘要
-             * 不区分用户名、消息类型，所有已读条目折成一堆
+             * 折叠规则：连续相邻 + 都是 .read → 加 .hide 真正隐藏，插入一行摘要
+             * 用 stage 直接子节点遍历，摘要和 danmu-item 平级
              */
             function collapseAdjacent() {
-                const items = Array.from(stage.querySelectorAll(':scope > .danmu-item.read'));
-                if (items.length < 2) return;
+                // 清除所有已有的 hide 和 summary，重新计算
+                stage.querySelectorAll(':scope > .danmu-item.read.hide').forEach(el => el.classList.remove('hide'));
+                stage.querySelectorAll(':scope > .collapse-summary').forEach(s => s.remove());
 
-                // 先把所有当前的 collapse-group 展开（简化：重算更安全）
-                stage.querySelectorAll(':scope > .collapse-group').forEach(group => {
-                    const summary = group.querySelector('.collapse-summary');
-                    const inner = Array.from(group.querySelectorAll(':scope > .danmu-item'));
-                    if (summary) group.parentNode.insertBefore(summary, group);
-                    inner.forEach(el => group.parentNode.insertBefore(el, summary));
-                    group.remove();
-                    if (summary) summary.remove();
-                });
-
-                // 再扫描：连续 .read 就合并
-                let run = [];
-                const flush = () => {
-                    if (run.length >= 2) {
-                        const group = document.createElement('div');
-                        group.className = 'collapse-group';
-                        const summary = document.createElement('div');
-                        summary.className = 'collapse-summary';
-                        summary.textContent = `▸ ${run.length} 条已读消息`;
-                        run[0].parentNode.insertBefore(group, run[0]);
-                        run.forEach(el => group.appendChild(el));
-                        group.insertBefore(summary, group.firstChild);
-                        summary.addEventListener('click', () => expandGroup(group));
-                    }
-                    run = [];
-                };
-
-                // 按 DOM 顺序遍历 stage 直接子节点
-                for (const child of Array.from(stage.children)) {
+                // 按 DOM 顺序扫描：找连续 .read.danmu-item
+                let runStart = -1, runCount = 0;
+                for (let i = 0; i < stage.children.length; i++) {
+                    const child = stage.children[i];
                     if (child.classList.contains('danmu-item') && child.classList.contains('read')) {
-                        run.push(child);
+                        if (runStart === -1) runStart = i;
+                        runCount++;
                     } else {
-                        flush();
+                        // 遇到中断 → flush
+                        if (runCount >= 2) _doCollapse(runStart, runCount);
+                        runStart = -1; runCount = 0;
                     }
                 }
-                flush();
+                // 末尾 flush
+                if (runCount >= 2) _doCollapse(runStart, runCount);
             }
 
-            function expandGroup(group) {
-                const summary = group.querySelector('.collapse-summary');
-                const items = Array.from(group.querySelectorAll(':scope > .danmu-item'));
-                if (summary) group.parentNode.insertBefore(summary, group);
-                items.forEach(el => group.parentNode.insertBefore(el, summary || group));
-                group.remove();
-                if (summary) summary.remove();
+            function _doCollapse(startIdx, count) {
+                // startIdx 是 stage.children 里第一个连续 read 的索引
+                const first = stage.children[startIdx];
+                // 给这 count 个加 .hide
+                for (let i = startIdx; i < startIdx + count; i++) {
+                    stage.children[i].classList.add('hide');
+                }
+                // 在第一个被 hide 的位置插入摘要
+                const summary = document.createElement('div');
+                summary.className = 'collapse-summary';
+                summary.textContent = `▸ ${count} 条已读消息`;
+                first.parentNode.insertBefore(summary, first);
+                summary.addEventListener('click', () => expandSummary(summary));
+            }
+
+            function expandSummary(summary) {
+                // 下一个兄弟节点开始，连续的 .danmu-item.read.hide 展开直到遇到非 hide
+                let node = summary.nextSibling;
+                while (node && node.classList && node.classList.contains('danmu-item') && node.classList.contains('hide')) {
+                    node.classList.remove('hide');
+                    node = node.nextSibling;
+                }
+                summary.remove();
             }
 
             // ===== 消息渲染 =====
@@ -504,33 +499,18 @@
                 // 如果有折叠组在底部，新消息追加到 stage 最后面（不会进折叠组）
                 stage.appendChild(buildBubble(msg));
 
-                // FIFO 淘汰
-                const items = stage.querySelectorAll('.danmu-item');
-                if (items.length > CFG.maxLines) {
-                    // 从最旧的开始删，直到 <= maxLines
-                    // 注意折叠组内的 danmu-item 也要算
-                    let count = items.length;
-                    const walkChildren = () => {
-                        // 先 stage 的直接子节点
-                        for (let i = 0; i < stage.children.length; i++) {
-                            const child = stage.children[i];
-                            if (child.classList.contains('danmu-item')) {
-                                if (count > CFG.maxLines) { child.remove(); count--; }
-                                else break;
-                            } else if (child.classList.contains('collapse-group')) {
-                                // 折叠组里的也要删
-                                const inner = child.querySelectorAll(':scope > .danmu-item');
-                                for (const el of inner) {
-                                    if (count > CFG.maxLines) { el.remove(); count--; }
-                                }
-                                // 如果组空了，整个组删
-                                if (child.querySelectorAll(':scope > .danmu-item').length === 0) {
-                                    child.remove();
-                                }
-                            }
+                // FIFO 淘汰（只数 danmu-item，不数 summary）
+                let count = stage.querySelectorAll(':scope > .danmu-item').length;
+                if (count > CFG.maxLines) {
+                    for (const child of Array.from(stage.children)) {
+                        if (count <= CFG.maxLines) break;
+                        if (child.classList.contains('danmu-item')) {
+                            child.remove();
+                            count--;
+                        } else if (child.classList.contains('collapse-summary')) {
+                            child.remove();   // 摘要没人对应了，顺带删
                         }
-                    };
-                    walkChildren();
+                    }
                 }
 
                 if (wasAtBottom) {
@@ -551,6 +531,18 @@
                 };
                 es.onerror = () => setTimeout(connectSSE, 2000);
             }
+
+            // ===== 手动 wheel 滚动（overflow:hidden 后原生滚动条没了）=====
+            stage.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                stage.scrollTop += e.deltaY;
+                stage.scrollTop = Math.max(0, Math.min(stage.scrollTop, stage.scrollHeight - stage.clientHeight));
+                _isAtBottom = checkIsAtBottom();
+                if (_isAtBottom && _unreadCount > 0) {
+                    _unreadCount = 0;
+                    updateBadge();
+                }
+            }, { passive: false });
 
             connectSSE();
         })();
