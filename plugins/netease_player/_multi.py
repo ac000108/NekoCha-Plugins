@@ -106,7 +106,7 @@ def kuwo_search(keyword, limit=10):
                 'id': str(s.get('MUSICRID', '')).split('_')[-1],
                 'name': s.get('SONGNAME', ''),
                 'artist': (s.get('ARTIST', '') or '').split('&')[0].strip(),
-                'duration': round((s.get('DURATION', 0) or 0) / 1000),
+                'duration': round((int(s.get('DURATION', 0) or 0)) / 1000),
                 'fee': 0,
                 'cover': s.get('ALBUMIMG', ''),
                 'album': s.get('ALBUM', ''),

@@ -28,7 +28,7 @@ from ._eapi import (
 )
 from ._multi import (
     merge_search, multi_play_url, unblock_by_bodian,
-    kugou_search, kuwo_search, qq_search,  # 暴露给外部直接用
+    kugou_search, kuwo_search, qq_search,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,60 +78,108 @@ def search(keyword, limit=5):
     return out
 
 
-def get_play_url(song_id, level='exhigh'):
+def get_play_url(song_id, level='exhigh', name='', artist='', duration=0):
     """
-    播放直链。level: standard / higher / exhigh / lossless / hires ...
-    返回: {'url', 'br'(kbps), 'fee', 'type', 'freeTrialInfo'} 或 {}
-    注意: 免费歌 fee=0/8 拿完整 CDN；VIP 歌 fee=1 拿 45 秒试听片段
+    直链：weapi 官方优先 → bodian 解灰兜底。
+    - 免费歌(fee=0/8): weapi 返回完整 CDN
+    - VIP 歌(fee=1): 官方返回 45s 试听(freeTrialInfo) → bodian 拿完整版
+    - 下架歌: weapi 返回 url 为空 → bodian 拿完整版
     """
+    # 1. 先试 weapi 官方直链
     d = eapi_song_url(song_id, level=level)
     items = d.get('data') or []
-    if not items:
+    if items:
+        item = items[0] if isinstance(items, list) else items
+        url = item.get('url', '') or ''
+        if url.startswith('http://'):
+            url = 'https://' + url[7:]
+        if url and not item.get('freeTrialInfo'):
+            # 官方完整直链 — 直接返回
+            logger.info(f'[weapi] play id={song_id} 官方完整直链 fee={item.get("fee")}')
+            return {
+                'url': url,
+                'br': (item.get('br') or 0) // 1000,
+                'fee': item.get('fee', -1),
+                'type': item.get('type', ''),
+                'freeTrialInfo': None,
+            }
+        elif url and item.get('freeTrialInfo'):
+            # 官方只有试听 — 试试 bodian 能不能解灰
+            logger.info(f'[weapi] play id={song_id} 仅试听 fee={item.get("fee")}，尝试解灰...')
+        # 如果没 url 或者只有试听 — 继续往下试 bodian
+    
+    # 2. 没元数据就先 detail 补
+    if not name:
+        detail = get_song_detail(song_id)
+        name = detail.get('name', '')
+        artist = detail.get('artist', '')
+    if name:
+        url = unblock_by_bodian(name, artist, duration or 0)
+        if url:
+            logger.info(f'[bodian] play id={song_id} 解灰完整版')
+            return {
+                'url': url,
+                'br': 0, 'fee': 1, 'type': 'flac', 'freeTrialInfo': None,
+            }
+    
+    # 3. 都不行 — 返回之前 weapi 的试听（如果有的话）
+    if items:
+        item = items[0] if isinstance(items, list) else items
+        url = item.get('url', '') or ''
+        if url.startswith('http://'):
+            url = 'https://' + url[7:]
+        if url:
+            return {
+                'url': url,
+                'br': (item.get('br') or 0) // 1000,
+                'fee': item.get('fee', -1),
+                'type': item.get('type', ''),
+                'freeTrialInfo': item.get('freeTrialInfo'),
+            }
+    return {}
+
+
+def get_play_urls(song_ids, level='exhigh', meta_map=None):
+    """批量直链：weapi 优先 + bodian 兜底"""
+    out = {}
+    ids = [int(x) for x in song_ids if x][:4]
+    if not ids:
         return {}
-    item = items[0] if isinstance(items, list) else items
-    url = item.get('url', '') or ''
-    if url.startswith('http://'):
-        url = 'https://' + url[7:]
-    logger.info(f'[eapi] play id={song_id} fee={item.get("fee")} br={item.get("br")} url={url[:80]}')
-    if not url:
-        return {}
-    return {
-        'url': url,
-        'br': (item.get('br') or 0) // 1000,
-        'fee': item.get('fee', -1),
-        'type': item.get('type', ''),
-        'freeTrialInfo': item.get('freeTrialInfo'),
-    }
+    # 先批量 weapi
+    d = eapi_song_url_batch(ids, level=level)
+    for item in (d.get('data') or []):
+        sid = item.get('id')
+        if sid is None: continue
+        url = item.get('url', '') or ''
+        if url.startswith('http://'):
+            url = 'https://' + url[7:]
+        if url and not item.get('freeTrialInfo'):
+            out[sid] = {
+                'url': url, 'br': (item.get('br') or 0) // 1000,
+                'fee': item.get('fee', -1), 'type': item.get('type', ''),
+                'freeTrialInfo': None,
+            }
+        elif url:
+            # 试听或空 — 标记但不添加到 out，让后续逐首调 bodian
+            pass
+    
+    # 对还没拿到完整直链的，逐首调 bodian
+    for sid in ids:
+        if sid in out and not out[sid].get('freeTrialInfo'):
+            continue  # 已有完整直链
+        m = (meta_map or {}).get(sid, {})
+        u = get_play_url(sid, level=level,
+                         name=m.get('name', ''),
+                         artist=m.get('artist', ''),
+                         duration=m.get('duration', 0))
+        if u and u.get('url'):
+            out[sid] = u
+    return out
 
 
 def get_lyric(song_id):
     """歌词：lrc + tlyric + yrc（优先逐字 yrc）"""
     return eapi_lyric(song_id)
-
-
-def get_play_urls(song_ids, level='exhigh'):
-    """批量直链（验证多首歌真实可播性）"""
-    ids = [int(x) for x in song_ids if x][:4]
-    if not ids:
-        return {}
-    d = eapi_song_url_batch(ids, level=level)
-    out = {}
-    for item in (d.get('data') or []):
-        sid = item.get('id')
-        if sid is None:
-            continue
-        url = item.get('url', '') or ''
-        if url.startswith('http://'):
-            url = 'https://' + url[7:]
-        out[sid] = {
-            'url': url,
-            'br': (item.get('br') or 0) // 1000,
-            'fee': item.get('fee', -1),
-            'type': item.get('type', ''),
-            'freeTrialInfo': item.get('freeTrialInfo'),
-        }
-    logger.info(f'[eapi] batch play ids={ids} → 可播 {[i for i in ids if out.get(i, {}).get("url")]}')
-    return out
 
 
 def get_song_detail(song_id):
