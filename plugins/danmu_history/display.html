@@ -248,16 +248,8 @@
                 collapseAdjacent();
             });
 
-            // 全局 mouseup：结束拖拽，如果跨越过 summary 就合并折叠块
-            let _crossedSummary = false;
-            document.addEventListener('mouseup', () => {
-                _dragging = false;
-                if (_crossedSummary) {
-                    collapseAdjacent();     // 全局重折叠 → 跨越的块自然合并
-                    _crossedSummary = false;
-                }
-                _dragReadCount = 0;
-            });
+            // 全局 mouseup：结束拖拽
+            document.addEventListener('mouseup', () => { _dragging = false; _dragReadCount = 0; });
 
             // ===== 折叠/展开逻辑 =====
             /**
@@ -287,22 +279,15 @@
             }
 
             function _doCollapse(startIdx, count) {
-                // startIdx 是 stage.children 里第一个连续 read 的索引
                 const first = stage.children[startIdx];
-                // 给这 count 个加 .hide
                 for (let i = startIdx; i < startIdx + count; i++) {
                     stage.children[i].classList.add('hide');
                 }
-                // 在第一个被 hide 的位置插入摘要
                 const summary = document.createElement('div');
                 summary.className = 'collapse-summary';
                 summary.textContent = `▸ ${count} 条已读消息`;
                 first.parentNode.insertBefore(summary, first);
                 summary.addEventListener('click', () => expandSummary(summary));
-                // 拖拽期间滑过 summary → 自动展开（让 hide 条目露出来被勾中，实现跨块合并）
-                summary.addEventListener('mouseenter', () => {
-                    if (_dragging) expandSummary(summary);
-                });
             }
 
             function expandSummary(summary) {
@@ -316,81 +301,44 @@
 
             /**
              * 折叠指定元素所在的连续已读块
-             * 遇到邻居 summary 直接把它和它后面的 hide 条目纳入范围，不展开
+             * 规则：只折叠 DOM 里**相邻平级**的连续已读条目
+             * 遇到 summary / hide / 非已读 就停，绝不合并其他已折叠块
              */
             function collapseRunContaining(target) {
                 if (target.classList.contains('hide') || target.classList.contains('collapse-summary')) return;
 
-                const children = Array.from(stage.children);
-                const idx = children.indexOf(target);
+                const idx = Array.from(stage.children).indexOf(target);
                 if (idx === -1) return;
 
-                // 向左扩展：纳入已读条目；遇到 hide 就回溯到前面的 summary，整块纳入
+                // 向左扩展：三选一就停 → 已折叠块边界 / 已隐藏条目 / 非已读
                 let left = idx;
                 while (left > 0) {
-                    const prev = stage.children[left - 1];
-                    if (prev.classList.contains('collapse-summary')) {
-                        // 纳入 summary + 它后面的所有 hide
-                        left--;
-                        while (left > 0 && stage.children[left].classList.contains('hide')) left--;
-                        continue;
-                    }
-                    if (prev.classList.contains('hide')) {
-                        // 向前回溯：跳过所有 hide，找到前面的 summary
-                        let scan = left - 1;
-                        while (scan > 0 && stage.children[scan].classList.contains('hide')) scan--;
-                        if (stage.children[scan] && stage.children[scan].classList.contains('collapse-summary')) {
-                            // 纳入 summary 到 scan，然后继续往前扫
-                            left = scan;
-                            continue;
-                        }
-                        break;   // 前面没 summary → 这是孤立的 hide（不应该发生）
-                    }
-                    if (!prev.classList.contains('danmu-item') || !prev.classList.contains('read')) break;
+                    const p = stage.children[left - 1];
+                    if (p.classList.contains('collapse-summary')) break;
+                    if (p.classList.contains('hide')) break;
+                    if (!p.classList.contains('danmu-item') || !p.classList.contains('read')) break;
                     left--;
                 }
-
-                // 向右扩展：对称处理
+                // 向右扩展
                 let right = idx;
                 while (right < stage.children.length - 1) {
-                    const next = stage.children[right + 1];
-                    if (next.classList.contains('collapse-summary')) {
-                        right++;
-                        while (right < stage.children.length - 1 && stage.children[right + 1].classList.contains('hide')) right++;
-                        continue;
-                    }
-                    if (next.classList.contains('hide')) {
-                        let scan = right + 1;
-                        while (scan < stage.children.length - 1 && stage.children[scan].classList.contains('hide')) scan++;
-                        if (stage.children[scan] && stage.children[scan].classList.contains('collapse-summary')) {
-                            right = scan;
-                            continue;
-                        }
-                        break;
-                    }
-                    if (!next.classList.contains('danmu-item') || !next.classList.contains('read')) break;
+                    const n = stage.children[right + 1];
+                    if (n.classList.contains('collapse-summary')) break;
+                    if (n.classList.contains('hide')) break;
+                    if (!n.classList.contains('danmu-item') || !n.classList.contains('read')) break;
                     right++;
                 }
 
                 const count = right - left + 1;
-                if (count < 2) return;
-
-                // 删掉范围内所有旧 summary（它们已经被新 summary 覆盖）
-                for (let i = left; i <= right; i++) {
-                    const el = stage.children[i];
-                    if (el.classList.contains('collapse-summary')) {
-                        el.remove();
-                        i--;   // remove 后 children 变了
-                        right--;
-                    } else if (el.classList.contains('danmu-item')) {
-                        el.classList.add('hide');
-                    }
-                }
+                if (count < 2) return;   // 单独 1 条不折
 
                 const first = stage.children[left];
+                for (let i = left; i <= right; i++) {
+                    stage.children[i].classList.add('hide');
+                }
                 const summary = document.createElement('div');
                 summary.className = 'collapse-summary';
-                summary.textContent = `▸ ${right - left + 1} 条已读消息`;
+                summary.textContent = `▸ ${count} 条已读消息`;
                 first.parentNode.insertBefore(summary, first);
                 summary.addEventListener('click', () => expandSummary(summary));
             }
@@ -544,18 +492,6 @@
                         if (!div.classList.contains('read')) {
                             div.classList.add('read');
                             _dragReadCount++;
-                        }
-                        // 检测是否跨越了已折叠块（前面有 summary 或 hide 条目）
-                        if (!_crossedSummary) {
-                            let sib = div.previousElementSibling;
-                            while (sib) {
-                                if (sib.classList.contains('collapse-summary') || sib.classList.contains('hide')) {
-                                    _crossedSummary = true;
-                                    break;
-                                }
-                                if (sib.classList.contains('danmu-item') && !sib.classList.contains('read')) break;
-                                sib = sib.previousElementSibling;
-                            }
                         }
                     }
                 });
