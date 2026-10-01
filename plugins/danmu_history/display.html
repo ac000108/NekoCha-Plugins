@@ -303,27 +303,31 @@
             }
 
             /**
-             * 折叠指定元素所在的连续已读块（定点折叠，不影响其他块）
+             * 折叠指定元素所在的连续已读块（定点折叠，不影响其他已折叠块）
              */
             function collapseRunContaining(target) {
-                // 先找到 target 对应的"可见块边界"——跳过已 hide 的和 summary
-                // 简化：先把所有 hide 还原，所有 summary 清掉，然后只折 target 周围
-                stage.querySelectorAll(':scope > .danmu-item.read.hide').forEach(el => el.classList.remove('hide'));
-                stage.querySelectorAll(':scope > .collapse-summary').forEach(s => s.remove());
+                // 跳过已经隐藏在 summary 后面的条目，或已经是 summary 本身
+                if (target.classList.contains('hide') || target.classList.contains('collapse-summary')) return;
 
                 // 找 target 在 stage.children 里的索引
                 const children = Array.from(stage.children);
                 const idx = children.indexOf(target);
                 if (idx === -1) return;
 
-                // 向左扩展：连续 .danmu-item.read
+                // 向左扩展：连续 .danmu-item.read（跳过 hide 的——如果左边有 summary，那左边块是独立的，就停）
                 let left = idx;
-                while (left > 0 && stage.children[left-1].classList.contains('danmu-item') && stage.children[left-1].classList.contains('read')) {
+                while (left > 0) {
+                    const prev = stage.children[left-1];
+                    if (prev.classList.contains('collapse-summary')) break;   // 左边有 summary → 独立块，停
+                    if (!prev.classList.contains('danmu-item') || !prev.classList.contains('read')) break;
                     left--;
                 }
                 // 向右扩展
                 let right = idx;
-                while (right < stage.children.length - 1 && stage.children[right+1].classList.contains('danmu-item') && stage.children[right+1].classList.contains('read')) {
+                while (right < stage.children.length - 1) {
+                    const next = stage.children[right+1];
+                    if (next.classList.contains('collapse-summary')) break;   // 右边有 summary → 独立块，停
+                    if (!next.classList.contains('danmu-item') || !next.classList.contains('read')) break;
                     right++;
                 }
 
