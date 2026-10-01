@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>弹幕历史</title>
+    <style>
+        html, body {
+            margin: 0; padding: 0;
+            background: transparent !important;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+        }
+
+        .history-stage {
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px 6px 40px 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            /* 自定义滚动条 */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+        .history-stage::-webkit-scrollbar {
+            width: 5px;
+        }
+        .history-stage::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .history-stage::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+        .history-stage::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.4);
+        }
+
+        .danmu-item {
+            padding: 3px 8px 3px 6px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            line-height: 1.4;
+            white-space: normal;
+            word-break: break-all;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: opacity 0.2s, filter 0.2s;
+            user-select: text;
+        }
+
+        /* 已读 */
+        .danmu-item.read {
+            opacity: 0.35;
+            filter: grayscale(0.6);
+        }
+
+        .danmu-item .time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            margin-right: 4px;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+        }
+
+        .danmu-item .identity {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            margin-right: 4px;
+            font-weight: 600;
+        }
+
+        .danmu-item .avatar {
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .danmu-item .uname {
+            white-space: nowrap;
+        }
+
+        .danmu-item .gift-icon,
+        .danmu-item .emoji,
+        .danmu-item .inline-emot {
+            height: 1.2em;
+            width: auto;
+            max-width: 28px;
+            vertical-align: middle;
+            display: inline-block;
+            object-fit: contain;
+        }
+
+        .danmu-item .sc-price {
+            font-size: 11px;
+            padding: 0 4px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.2);
+            font-weight: 700;
+        }
+
+        /* 背景两类（深色/紫色）*/
+        .bg-dark   { background: rgba(22, 22, 30, 0.72); }
+        .bg-purple { background: rgba(80, 45, 150, 0.72); border: 1px solid rgba(160,120,255,0.25); }
+
+        /* 名字颜色 */
+        .uname-rank-gray   { color: #b0b0b8; }
+        .uname-rank-blue   { color: #6fb6ff; }
+        .uname-rank-purple { color: #c79bff; }
+        .uname-rank-gold   { color: #ffd86b; }
+
+        /* ===== 悬浮控件 ===== */
+        .floating-controls {
+            position: fixed;
+            bottom: 8px; left: 0; right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .unread-badge {
+            background: rgba(22, 22, 30, 0.9);
+            border: 1px solid rgba(80, 170, 255, 0.6);
+            color: #8ac7ff;
+            padding: 4px 12px;
+            border-radius: 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.25s, transform 0.25s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .unread-badge.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .unread-badge:hover {
+            background: rgba(40, 40, 55, 0.95);
+        }
+
+        .mark-all-btn {
+            background: rgba(22, 22, 30, 0.75);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.6);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: color 0.2s, background 0.2s;
+        }
+        .mark-all-btn:hover {
+            color: rgba(255,255,255,0.9);
+            background: rgba(40,40,55,0.9);
+        }
+        .mark-all-btn.hidden { display: none; }
+
+        .empty-tip {
+            text-align: center;
+            color: rgba(255,255,255,0.3);
+            font-size: 13px;
+            padding: 40px 0;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="history-stage" id="stage">
+        <div class="empty-tip" id="emptyTip">等待消息…</div>
+    </div>
+    <div class="floating-controls">
+        <button class="unread-badge" id="unreadBadge">↑ 0 条新消息</button>
+        <button class="mark-all-btn" id="markAllBtn">全部已读</button>
+    </div>
+
+    <script>
+        (function() {
+            const _parts = location.pathname.split('/').filter(Boolean);
+            const ROOM_ID = _parts[1] || null;
+            const PLUGIN_NAME = _parts[3] || null;
+
+            const stage = document.getElementById('stage');
+            const emptyTip = document.getElementById('emptyTip');
+            const unreadBadge = document.getElementById('unreadBadge');
+            const markAllBtn = document.getElementById('markAllBtn');
+
+            let CFG = {
+                types: { '弹幕': true, '礼物': true, '醒目留言': true, '舰长': true, '互动': true },
+                maxLines: 500,
+            };
+
+            // ===== 状态 =====
+            let _unreadCount = 0;
+            let _isAtBottom = true;   // 当前视口是否在底部（自动追新状态）
+            let _firstMsg = true;     // 第一条消息，用于移除 emptyTip
+
+            async function loadPluginConfig() {
+                try {
+                    const r = await fetch(`/rooms/${ROOM_ID}/plugins/${PLUGIN_NAME}/config`);
+                    if (!r.ok) return;
+                    const cfg = await r.json();
+                    ['弹幕','礼物','互动','舰长','醒目留言'].forEach(k => {
+                        if (cfg[k] !== undefined) CFG.types[k] = !!cfg[k];
+                    });
+                    if (cfg.maxLines) CFG.maxLines = parseInt(cfg.maxLines) || 500;
+                } catch (e) {}
+            }
+            loadPluginConfig();
+
+            // ===== 滚动状态检测 =====
+            function checkIsAtBottom() {
+                // clientHeight 是可视高度，scrollHeight 是内容总高度
+                // 距底部 50px 以内算"在底部"
+                return stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 50;
+            }
+
+            stage.addEventListener('scroll', () => {
+                _isAtBottom = checkIsAtBottom();
+                if (_isAtBottom && _unreadCount > 0) {
+                    // 用户滚到底了 → 恢复自动追新
+                    _unreadCount = 0;
+                    updateBadge();
+                }
+            });
+
+            // ===== 徽标 =====
+            function updateBadge() {
+                if (_unreadCount > 0) {
+                    unreadBadge.textContent = `↑ ${_unreadCount} 条新消息`;
+                    unreadBadge.classList.add('show');
+                } else {
+                    unreadBadge.classList.remove('show');
+                }
+            }
+
+            unreadBadge.addEventListener('click', () => {
+                _unreadCount = 0;
+                updateBadge();
+                stage.scrollTop = stage.scrollHeight;
+            });
+
+            markAllBtn.addEventListener('click', () => {
+                document.querySelectorAll('.danmu-item:not(.read)').forEach(el => {
+                    el.classList.add('read');
+                });
+                // 滚到底后再接收的新消息默认是"未读"状态，这个行为正确
+            });
+
+            // ===== 消息渲染 =====
+            function rankClass(msg) {
+                const lv = msg['舰长等级'] || '';
+                if (lv === '总督') return 'uname-rank-gold';
+                if (lv === '提督') return 'uname-rank-purple';
+                if (lv === '舰长') return 'uname-rank-blue';
+                return 'uname-rank-gray';
+            }
+
+            function bgClass(msg) {
+                const t = msg['消息类型'];
+                if (t === '礼物' || t === '醒目留言' || t === '舰长') return 'bg-purple';
+                return 'bg-dark';
+            }
+
+            function timeStr() {
+                const d = new Date();
+                const h = String(d.getHours()).padStart(2,'0');
+                const m = String(d.getMinutes()).padStart(2,'0');
+                const s = String(d.getSeconds()).padStart(2,'0');
+                return `${h}:${m}:${s}`;
+            }
+
+            function buildBubble(msg) {
+                const t = msg['消息类型'];
+                const div = document.createElement('div');
+                div.className = 'danmu-item ' + bgClass(msg);
+                div.dataset.time = timeStr();
+
+                // 时间戳
+                const time = document.createElement('span');
+                time.className = 'time';
+                time.textContent = timeStr();
+                div.appendChild(time);
+
+                // 头像 + 名字
+                const avatar = msg['头像URL'];
+                if (avatar) {
+                    const img = document.createElement('img');
+                    img.className = 'avatar';
+                    img.src = avatar;
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = () => img.remove();
+                    div.appendChild(img);
+                }
+                const mark = document.createElement('span');
+                mark.className = 'uname ' + rankClass(msg);
+                mark.textContent = (msg['用户名'] || '') + ':';
+                div.appendChild(mark);
+
+                // 正文
+                if (t === '礼物' && msg['礼物图片URL']) {
+                    const img = document.createElement('img');
+                    img.className = 'gift-icon';
+                    img.src = msg['礼物图片URL'];
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = () => img.remove();
+                    div.appendChild(img);
+                }
+
+                if (t === '弹幕') {
+                    const content = msg['弹幕内容'] || '';
+                    const emojiUrl = msg['图片链接'];
+                    const inlineEmots = msg['inline表情'] || {};
+
+                    if (emojiUrl) {
+                        const img = document.createElement('img');
+                        img.className = 'emoji';
+                        img.src = emojiUrl;
+                        img.referrerPolicy = 'no-referrer';
+                        img.onerror = () => img.remove();
+                        div.appendChild(img);
+                    } else if (content) {
+                        if (Object.keys(inlineEmots).length > 0) {
+                            const regex = /\[[^\]]+\]/g;
+                            let lastIdx = 0, m;
+                            const wholeMatch = content.match(/^\[[^\]]+\]$/);
+                            if (wholeMatch && inlineEmots[wholeMatch[0]]) {
+                                const img = document.createElement('img');
+                                img.className = 'inline-emot';
+                                img.src = inlineEmots[wholeMatch[0]];
+                                img.referrerPolicy = 'no-referrer';
+                                img.onerror = () => img.remove();
+                                div.appendChild(img);
+                            } else {
+                                while ((m = regex.exec(content)) !== null) {
+                                    if (m.index > lastIdx) {
+                                        div.appendChild(document.createTextNode(content.slice(lastIdx, m.index)));
+                                    }
+                                    const emotUrl = inlineEmots[m[0]];
+                                    if (emotUrl) {
+                                        const img = document.createElement('img');
+                                        img.className = 'inline-emot';
+                                        img.src = emotUrl;
+                                        img.referrerPolicy = 'no-referrer';
+                                        img.onerror = () => img.remove();
+                                        div.appendChild(img);
+                                    } else {
+                                        div.appendChild(document.createTextNode(m[0]));
+                                    }
+                                    lastIdx = regex.lastIndex;
+                                }
+                                if (lastIdx < content.length) {
+                                    div.appendChild(document.createTextNode(content.slice(lastIdx)));
+                                }
+                            }
+                        } else {
+                            div.appendChild(document.createTextNode(content));
+                        }
+                    }
+                } else if (t === '礼物') {
+                    const name = msg['礼物名称'] || '礼物';
+                    const num = msg['礼物数量'] || 1;
+                    const totalCoin = msg['总价值'] || 0;
+                    const cny = (totalCoin / 1000).toFixed(2);
+                    let txt = `${name} ×${num}`;
+                    if (totalCoin > 0) txt += `  CNY ${cny}`;
+                    div.appendChild(document.createTextNode(txt));
+                } else if (t === '互动') {
+                    div.appendChild(document.createTextNode(msg['动作'] || ''));
+                } else if (t === '舰长') {
+                    div.appendChild(document.createTextNode(`开通${msg['开通数量'] || 1} ${msg['舰长等级'] || '舰长'}`));
+                } else if (t === '醒目留言') {
+                    const price = msg['价格'];
+                    if (price) {
+                        const p = document.createElement('span');
+                        p.className = 'sc-price';
+                        p.textContent = '¥' + (price / 10).toFixed(1);
+                        div.appendChild(p);
+                    }
+                    div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
+                }
+
+                // 点击变灰已读
+                div.addEventListener('click', () => {
+                    div.classList.toggle('read');
+                });
+
+                return div;
+            }
+
+            function pushBubble(msg) {
+                if (!ROOM_ID) return;
+                const t = msg['消息类型'];
+                if (!CFG.types[t]) return;
+
+                if (_firstMsg) {
+                    _firstMsg = false;
+                    emptyTip.remove();
+                }
+
+                const wasAtBottom = _isAtBottom;
+
+                stage.appendChild(buildBubble(msg));
+
+                // FIFO 淘汰（先加后删，避免 firstChild 在 append 前为 null）
+                while (stage.querySelectorAll('.danmu-item').length > CFG.maxLines) {
+                    // 注意：stage 里除了 danmu-item 可能还有 emptyTip，所以用 querySelectorAll
+                    const oldest = stage.querySelector('.danmu-item');
+                    if (oldest) oldest.remove();
+                }
+
+                if (wasAtBottom) {
+                    // 自动追新：滚到底
+                    stage.scrollTop = stage.scrollHeight;
+                    _unreadCount = 0;
+                    _isAtBottom = true;
+                } else {
+                    // 不在底部 → 不强制滚，显示徽标
+                    _unreadCount++;
+                }
+                updateBadge();
+            }
+
+            function connectSSE() {
+                if (!ROOM_ID) return;
+                const es = new EventSource(`/api/events?plugin=${PLUGIN_NAME}&room_id=${ROOM_ID}`);
+                es.onmessage = ev => {
+                    try { pushBubble(JSON.parse(ev.data)); } catch (e) {}
+                };
+                es.onerror = () => setTimeout(connectSSE, 2000);
+            }
+
+            connectSSE();
+        })();
+    </script>
+</body>
+</html>

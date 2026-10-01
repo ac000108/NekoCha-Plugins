@@ -1,0 +1,15 @@
+{
+    "name": "弹幕历史",
+    "version": "1.0.1",
+    "description": "全屏高度可滚动的弹幕历史回看窗，点击已读、滚轮翻页",
+    "mode": "off",
+    "display_mode": "floating_scroll",
+    "width": 360,
+    "height": 9999,
+    "弹幕": true,
+    "互动": true,
+    "礼物": true,
+    "舰长": true,
+    "醒目留言": true,
+    "maxLines": 500
+}
