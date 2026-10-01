@@ -249,16 +249,73 @@ def bodian_track(music_id):
         return None
 
 
-def bodian_check(info):
+def bodian_check(info, max_candidates=10):
     """
     bodian 的 check()：搜索 + 直链（UnblockNeteaseMusic/server/provider/bodian.js 的 check）。
+    关键优化：酷我搜索结果里，第一个候选（官方原唱）经常被酷我 20018 封，
+    但第 2~5 个候选（DJ版/现场版/串烧版）很多是能过的。
+    这里遍历所有候选直到找到能过的。
     info: {'keyword', 'name', 'artists', 'duration'}（毫秒）
     返回: https URL 或 None
     """
-    rid = _bodian_search(info)
-    if not rid:
-        return None
-    return bodian_track(rid)
+    # 1. 用关键词拼多个变体去搜（提升命中率）
+    name = info.get('name', '')
+    artist = (info.get('artists') or [{}])[0].get('name', '') if info.get('artists') else ''
+    artist_str = artist.strip() if artist else ''
+
+    # 构造搜索关键词变体（多轮搜索，酷我不同关键词返回不同排序）
+    keyword_variants = []
+    base_kw = info.get('keyword') or ''
+    if base_kw:
+        keyword_variants.append(base_kw)
+    if name and artist_str:
+        keyword_variants.append(f'{name} - {artist_str}')
+        keyword_variants.append(f'{name} {artist_str}')
+        keyword_variants.append(f'{artist_str} {name}')
+    elif name:
+        keyword_variants.append(name)
+    # 去重保序
+    seen = set()
+    keyword_variants = [k for k in keyword_variants if k and not (k in seen or seen.add(k))]
+
+    target_dur_ms = info.get('duration') or 0
+    tested_rids = set()
+
+    for kw in keyword_variants:
+        kw_candidates = kuwo_search(kw, limit=max_candidates)
+        for c in kw_candidates:
+            rid = (c.get('extra') or {}).get('rid', '')
+            if not rid or rid in tested_rids:
+                continue
+            tested_rids.add(rid)
+
+            # 时长快速筛选（避免瞎试）
+            if target_dur_ms and c.get('duration'):
+                if abs(c['duration'] * 1000 - target_dur_ms) > 15000:
+                    continue  # 差 15s 以上大概率不是同一首，跳过
+
+            url = bodian_track(rid)
+            if url:
+                # 验证 URL 能打开（HEAD 前 8KB 探测）
+                try:
+                    req = urllib.request.Request(url, headers={
+                        'Range': 'bytes=0-8191',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                    })
+                    with urllib.request.urlopen(req, timeout=8) as r:
+                        if r.status in (200, 206, 302):
+                            logger.info(f'[bodian] ✅ rid={rid} keyword="{kw}" '
+                                        f'→ "{c["name"]} - {c["artist"]}" → host={urllib.parse.urlparse(url).netloc}')
+                            return url
+                except Exception as e:
+                    logger.debug(f'[bodian] HEAD 探测失败: {e}')
+                    # HEAD 失败但 URL 有效，还是返回吧
+                    return url
+            # 这条不行，试下一个
+            continue
+
+    logger.info(f'[bodian] ❌ 多候选遍历全灭 ({len(tested_rids)} 条 rid) keyword_variants={keyword_variants}')
+    return None
 
 
 # ==================== 对外统一接口 ====================
@@ -280,19 +337,23 @@ def merge_search(keyword, limit=15, platforms=('kugou', 'kuwo', 'qq')):
 
 def multi_play_url(name, artist='', duration=0):
     """
-    多端统一直链（走 bodian = 酷我完整版）。
+    多端统一直链（走 bodian = 酷我完整版，多候选遍历直到命中）。
     与原 Node API /multi/url 等价。
     name: 歌名
-    artist: 歌手（可以空）
+    artist: 歌手（可以空，多歌手用 / 分隔）
     duration: 时长（秒）
     返回: https URL 字符串，失败返回 None
     """
     if not name:
         return None
+    # artist 可能是 "周杰伦"、"周杰伦 / 林俊杰"、"周杰伦,林俊杰"
+    artist_tokens = re.split(r'[\s/、,]+', artist or '')
+    artists_list = [{'name': a.strip()} for a in artist_tokens if a.strip()]
+
     info = {
         'keyword': (f'{name} - {artist}' if artist else name).strip(),
         'name': name,
-        'artists': [{'name': a.strip()} for a in artist.replace(' / ', ',').replace(',', '/').split('/') if a.strip()],
+        'artists': artists_list,
         'duration': duration * 1000,
     }
     return bodian_check(info)
@@ -300,11 +361,11 @@ def multi_play_url(name, artist='', duration=0):
 
 def unblock_by_bodian(name, artist='', duration=0, netease_id=None):
     """
-    解灰：给定歌名+歌手+时长，用 bodian 匹配酷我完整版。
+    解灰：给定歌名+歌手+时长，用 bodian 多候选遍历匹配酷我完整版。
     （Node API 的 /song/url/match 本质也是这个逻辑，只是多了一层网易云 song detail → 提取元数据）
     返回: https URL 或 None
     """
     url = multi_play_url(name, artist, duration)
     if url:
-        logger.info(f'[multi] 🔓 bodian 直链命中: {name} - {artist}')
+        logger.info(f'[multi] 🔓 bodian 多候选命中: {name} - {artist}')
     return url
