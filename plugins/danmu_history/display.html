@@ -20,22 +20,14 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            /* 自定义滚动条 */
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.2) transparent;
+            /* 隐藏滚动条但保留滚动能力 */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         }
         .history-stage::-webkit-scrollbar {
-            width: 5px;
-        }
-        .history-stage::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .history-stage::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-        }
-        .history-stage::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.4);
+            display: none;
+            width: 0;
+            height: 0;
         }
 
         .danmu-item {
@@ -56,6 +48,29 @@
         .danmu-item.read {
             opacity: 0.35;
             filter: grayscale(0.6);
+        }
+
+        /* 折叠组 */
+        .collapse-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .collapse-summary {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: rgba(22, 22, 30, 0.5);
+            color: rgba(255,255,255,0.35);
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 1px;
+            transition: color 0.2s, background 0.2s;
+            user-select: none;
+        }
+        .collapse-summary:hover {
+            color: rgba(255,255,255,0.6);
+            background: rgba(40,40,55,0.7);
         }
 
         .danmu-item .time {
@@ -106,11 +121,9 @@
             font-weight: 700;
         }
 
-        /* 背景两类（深色/紫色）*/
         .bg-dark   { background: rgba(22, 22, 30, 0.72); }
         .bg-purple { background: rgba(80, 45, 150, 0.72); border: 1px solid rgba(160,120,255,0.25); }
 
-        /* 名字颜色 */
         .uname-rank-gray   { color: #b0b0b8; }
         .uname-rank-blue   { color: #6fb6ff; }
         .uname-rank-purple { color: #c79bff; }
@@ -201,10 +214,10 @@
                 maxLines: 500,
             };
 
-            // ===== 状态 =====
             let _unreadCount = 0;
-            let _isAtBottom = true;   // 当前视口是否在底部（自动追新状态）
-            let _firstMsg = true;     // 第一条消息，用于移除 emptyTip
+            let _isAtBottom = true;
+            let _firstMsg = true;
+            let _dragging = false;   // 全局拖拽勾选状态
 
             async function loadPluginConfig() {
                 try {
@@ -219,23 +232,18 @@
             }
             loadPluginConfig();
 
-            // ===== 滚动状态检测 =====
             function checkIsAtBottom() {
-                // clientHeight 是可视高度，scrollHeight 是内容总高度
-                // 距底部 50px 以内算"在底部"
                 return stage.scrollTop + stage.clientHeight >= stage.scrollHeight - 50;
             }
 
             stage.addEventListener('scroll', () => {
                 _isAtBottom = checkIsAtBottom();
                 if (_isAtBottom && _unreadCount > 0) {
-                    // 用户滚到底了 → 恢复自动追新
                     _unreadCount = 0;
                     updateBadge();
                 }
             });
 
-            // ===== 徽标 =====
             function updateBadge() {
                 if (_unreadCount > 0) {
                     unreadBadge.textContent = `↑ ${_unreadCount} 条新消息`;
@@ -255,8 +263,74 @@
                 document.querySelectorAll('.danmu-item:not(.read)').forEach(el => {
                     el.classList.add('read');
                 });
-                // 滚到底后再接收的新消息默认是"未读"状态，这个行为正确
+                collapseAdjacent();
             });
+
+            // 全局 mouseup：结束拖拽勾选
+            document.addEventListener('mouseup', () => {
+                if (_dragging) {
+                    _dragging = false;
+                    collapseAdjacent();
+                }
+            });
+
+            // ===== 折叠/展开逻辑 =====
+            /**
+             * 折叠规则：连续相邻 + 都是 .read + 同用户名 + 同消息类型 → 折叠
+             * 折叠后显示一行摘要，点摘要展开
+             */
+            function collapseAdjacent() {
+                // 扫描所有未折叠的 .read danmu-item
+                const items = Array.from(stage.querySelectorAll(':scope > .danmu-item.read'));
+                let i = 0;
+                while (i < items.length) {
+                    const cur = items[i];
+                    const uname = cur.dataset.uname;
+                    const mtype = cur.dataset.mtype;
+                    if (!uname || !mtype) { i++; continue; }
+
+                    // 向后找连续同用户名+同类型的已读
+                    let j = i + 1;
+                    while (j < items.length &&
+                           items[j].dataset.uname === uname &&
+                           items[j].dataset.mtype === mtype) {
+                        j++;
+                    }
+                    // j - i 是连续条数
+                    if (j - i >= 2) {
+                        // 需要折叠：把 items[i..j-1] 包进一个 group
+                        const group = document.createElement('div');
+                        group.className = 'collapse-group';
+
+                        const summary = document.createElement('div');
+                        summary.className = 'collapse-summary';
+                        summary.textContent = `▸ ${j - i} × ${uname} · ${mtype}`;
+
+                        // 先把当前块替换成 group（保留 DOM 顺序）
+                        cur.parentNode.insertBefore(group, cur);
+                        for (let k = i; k < j; k++) {
+                            group.appendChild(items[k]);
+                        }
+                        group.insertBefore(summary, group.firstChild);
+
+                        summary.addEventListener('click', () => expandGroup(group));
+                    }
+                    i = j;
+                }
+            }
+
+            function expandGroup(group) {
+                const summary = group.querySelector('.collapse-summary');
+                const items = Array.from(group.querySelectorAll(':scope > .danmu-item'));
+                // 把 items 放回 group 原来的位置
+                group.parentNode.insertBefore(summary, group); // 先插回去占位
+                items.forEach(el => {
+                    group.parentNode.insertBefore(el, summary);
+                });
+                group.remove();
+                summary.remove();
+                // 展开后的条目保留 .read 状态（用户可再次点取消已读）
+            }
 
             // ===== 消息渲染 =====
             function rankClass(msg) {
@@ -285,7 +359,9 @@
                 const t = msg['消息类型'];
                 const div = document.createElement('div');
                 div.className = 'danmu-item ' + bgClass(msg);
-                div.dataset.time = timeStr();
+                // 给折叠逻辑用的 data 属性
+                div.dataset.uname = msg['用户名'] || '';
+                div.dataset.mtype = t;
 
                 // 时间戳
                 const time = document.createElement('span');
@@ -308,7 +384,7 @@
                 mark.textContent = (msg['用户名'] || '') + ':';
                 div.appendChild(mark);
 
-                // 正文
+                // 正文（同 danmu_show 的渲染逻辑）
                 if (t === '礼物' && msg['礼物图片URL']) {
                     const img = document.createElement('img');
                     img.className = 'gift-icon';
@@ -391,9 +467,18 @@
                     div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
                 }
 
-                // 点击变灰已读
-                div.addEventListener('click', () => {
-                    div.classList.toggle('read');
+                // 拖拽勾选已读：按下滑过连续标记
+                div.addEventListener('mousedown', (e) => {
+                    e.preventDefault();   // 阻止原生文字选中
+                    _dragging = true;
+                    div.classList.add('read');
+                    collapseAdjacent();
+                });
+                div.addEventListener('mouseenter', () => {
+                    if (_dragging) {
+                        div.classList.add('read');
+                        collapseAdjacent();
+                    }
                 });
 
                 return div;
@@ -411,22 +496,43 @@
 
                 const wasAtBottom = _isAtBottom;
 
+                // 如果有折叠组在底部，新消息追加到 stage 最后面（不会进折叠组）
                 stage.appendChild(buildBubble(msg));
 
-                // FIFO 淘汰（先加后删，避免 firstChild 在 append 前为 null）
-                while (stage.querySelectorAll('.danmu-item').length > CFG.maxLines) {
-                    // 注意：stage 里除了 danmu-item 可能还有 emptyTip，所以用 querySelectorAll
-                    const oldest = stage.querySelector('.danmu-item');
-                    if (oldest) oldest.remove();
+                // FIFO 淘汰
+                const items = stage.querySelectorAll('.danmu-item');
+                if (items.length > CFG.maxLines) {
+                    // 从最旧的开始删，直到 <= maxLines
+                    // 注意折叠组内的 danmu-item 也要算
+                    let count = items.length;
+                    const walkChildren = () => {
+                        // 先 stage 的直接子节点
+                        for (let i = 0; i < stage.children.length; i++) {
+                            const child = stage.children[i];
+                            if (child.classList.contains('danmu-item')) {
+                                if (count > CFG.maxLines) { child.remove(); count--; }
+                                else break;
+                            } else if (child.classList.contains('collapse-group')) {
+                                // 折叠组里的也要删
+                                const inner = child.querySelectorAll(':scope > .danmu-item');
+                                for (const el of inner) {
+                                    if (count > CFG.maxLines) { el.remove(); count--; }
+                                }
+                                // 如果组空了，整个组删
+                                if (child.querySelectorAll(':scope > .danmu-item').length === 0) {
+                                    child.remove();
+                                }
+                            }
+                        }
+                    };
+                    walkChildren();
                 }
 
                 if (wasAtBottom) {
-                    // 自动追新：滚到底
                     stage.scrollTop = stage.scrollHeight;
                     _unreadCount = 0;
                     _isAtBottom = true;
                 } else {
-                    // 不在底部 → 不强制滚，显示徽标
                     _unreadCount++;
                 }
                 updateBadge();
