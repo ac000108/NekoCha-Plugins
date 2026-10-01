@@ -1,6 +1,6 @@
 {
     "name": "弹幕历史",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "description": "全屏高度可滚动的弹幕历史回看窗，点击已读、滚轮翻页",
     "mode": "off",
     "display_mode": "floating_scroll",

@@ -303,36 +303,37 @@
             }
 
             /**
-             * 折叠指定元素所在的连续已读块（定点折叠，不影响其他已折叠块）
+             * 折叠指定元素所在的连续已读块（定点折叠，块间独立不合并）
              */
             function collapseRunContaining(target) {
-                // 跳过已经隐藏在 summary 后面的条目，或已经是 summary 本身
+                // 跳过已经隐藏的条目或 summary 本身
                 if (target.classList.contains('hide') || target.classList.contains('collapse-summary')) return;
 
-                // 找 target 在 stage.children 里的索引
                 const children = Array.from(stage.children);
                 const idx = children.indexOf(target);
                 if (idx === -1) return;
 
-                // 向左扩展：连续 .danmu-item.read（跳过 hide 的——如果左边有 summary，那左边块是独立的，就停）
+                // 向左扩展：连续 .danmu-item.read，遇到 summary 或 hide 就停（块间独立）
                 let left = idx;
                 while (left > 0) {
-                    const prev = stage.children[left-1];
-                    if (prev.classList.contains('collapse-summary')) break;   // 左边有 summary → 独立块，停
+                    const prev = stage.children[left - 1];
+                    if (prev.classList.contains('collapse-summary')) break;
+                    if (prev.classList.contains('hide')) break;
                     if (!prev.classList.contains('danmu-item') || !prev.classList.contains('read')) break;
                     left--;
                 }
                 // 向右扩展
                 let right = idx;
                 while (right < stage.children.length - 1) {
-                    const next = stage.children[right+1];
-                    if (next.classList.contains('collapse-summary')) break;   // 右边有 summary → 独立块，停
+                    const next = stage.children[right + 1];
+                    if (next.classList.contains('collapse-summary')) break;
+                    if (next.classList.contains('hide')) break;
                     if (!next.classList.contains('danmu-item') || !next.classList.contains('read')) break;
                     right++;
                 }
 
                 const count = right - left + 1;
-                if (count < 2) return;   // 至少 2 条才折
+                if (count < 2) return;
 
                 const first = stage.children[left];
                 for (let i = left; i <= right; i++) {
