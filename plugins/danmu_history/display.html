@@ -206,7 +206,8 @@
             let _unreadCount = 0;
             let _isAtBottom = true;
             let _firstMsg = true;
-            let _dragging = false;   // 全局拖拽勾选状态
+            let _dragging = false;       // 当前是否按住鼠标
+            let _dragReadCount = 0;      // 本次拖拽期间有多少条变灰（>1 说明是拖拽不是单点）
 
             async function loadPluginConfig() {
                 try {
@@ -247,8 +248,8 @@
                 collapseAdjacent();
             });
 
-            // 全局 mouseup：结束拖拽变灰
-            document.addEventListener('mouseup', () => { _dragging = false; });
+            // 全局 mouseup：结束拖拽
+            document.addEventListener('mouseup', () => { _dragging = false; _dragReadCount = 0; });
 
             // ===== 折叠/展开逻辑 =====
             /**
@@ -475,18 +476,24 @@
                     div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
                 }
 
-                // 拖拽变灰
-                div.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
+                // 点击/拖拽变灰 + 折叠触发
+                div.addEventListener('mousedown', () => {
                     _dragging = true;
+                    _dragReadCount = 1;
                     div.classList.add('read');
                 });
                 div.addEventListener('mouseenter', () => {
-                    if (_dragging) div.classList.add('read');
+                    if (_dragging) {
+                        if (!div.classList.contains('read')) {
+                            div.classList.add('read');
+                            _dragReadCount++;
+                        }
+                    }
                 });
-                // 单击灰色条目 → 折叠它所在的连续已读块
+                // 再次单击灰色条目 → 折叠（但如果是拖拽释放产生的 click 就跳过）
                 div.addEventListener('click', () => {
-                    if (!_dragging && div.classList.contains('read')) {
+                    if (_dragReadCount > 1) return;          // 拖拽产生的 click，跳过
+                    if (div.classList.contains('read')) {
                         collapseRunContaining(div);
                     }
                 });
