@@ -283,60 +283,58 @@
 
             // ===== 折叠/展开逻辑 =====
             /**
-             * 折叠规则：连续相邻 + 都是 .read + 同用户名 + 同消息类型 → 折叠
-             * 折叠后显示一行摘要，点摘要展开
+             * 折叠规则：连续相邻 + 都是 .read → 合并为一行摘要
+             * 不区分用户名、消息类型，所有已读条目折成一堆
              */
             function collapseAdjacent() {
-                // 扫描所有未折叠的 .read danmu-item
                 const items = Array.from(stage.querySelectorAll(':scope > .danmu-item.read'));
-                let i = 0;
-                while (i < items.length) {
-                    const cur = items[i];
-                    const uname = cur.dataset.uname;
-                    const mtype = cur.dataset.mtype;
-                    if (!uname || !mtype) { i++; continue; }
+                if (items.length < 2) return;
 
-                    // 向后找连续同用户名+同类型的已读
-                    let j = i + 1;
-                    while (j < items.length &&
-                           items[j].dataset.uname === uname &&
-                           items[j].dataset.mtype === mtype) {
-                        j++;
-                    }
-                    // j - i 是连续条数
-                    if (j - i >= 2) {
-                        // 需要折叠：把 items[i..j-1] 包进一个 group
+                // 先把所有当前的 collapse-group 展开（简化：重算更安全）
+                stage.querySelectorAll(':scope > .collapse-group').forEach(group => {
+                    const summary = group.querySelector('.collapse-summary');
+                    const inner = Array.from(group.querySelectorAll(':scope > .danmu-item'));
+                    if (summary) group.parentNode.insertBefore(summary, group);
+                    inner.forEach(el => group.parentNode.insertBefore(el, summary));
+                    group.remove();
+                    if (summary) summary.remove();
+                });
+
+                // 再扫描：连续 .read 就合并
+                let run = [];
+                const flush = () => {
+                    if (run.length >= 2) {
                         const group = document.createElement('div');
                         group.className = 'collapse-group';
-
                         const summary = document.createElement('div');
                         summary.className = 'collapse-summary';
-                        summary.textContent = `▸ ${j - i} × ${uname} · ${mtype}`;
-
-                        // 先把当前块替换成 group（保留 DOM 顺序）
-                        cur.parentNode.insertBefore(group, cur);
-                        for (let k = i; k < j; k++) {
-                            group.appendChild(items[k]);
-                        }
+                        summary.textContent = `▸ ${run.length} 条已读消息`;
+                        run[0].parentNode.insertBefore(group, run[0]);
+                        run.forEach(el => group.appendChild(el));
                         group.insertBefore(summary, group.firstChild);
-
                         summary.addEventListener('click', () => expandGroup(group));
                     }
-                    i = j;
+                    run = [];
+                };
+
+                // 按 DOM 顺序遍历 stage 直接子节点
+                for (const child of Array.from(stage.children)) {
+                    if (child.classList.contains('danmu-item') && child.classList.contains('read')) {
+                        run.push(child);
+                    } else {
+                        flush();
+                    }
                 }
+                flush();
             }
 
             function expandGroup(group) {
                 const summary = group.querySelector('.collapse-summary');
                 const items = Array.from(group.querySelectorAll(':scope > .danmu-item'));
-                // 把 items 放回 group 原来的位置
-                group.parentNode.insertBefore(summary, group); // 先插回去占位
-                items.forEach(el => {
-                    group.parentNode.insertBefore(el, summary);
-                });
+                if (summary) group.parentNode.insertBefore(summary, group);
+                items.forEach(el => group.parentNode.insertBefore(el, summary || group));
                 group.remove();
-                summary.remove();
-                // 展开后的条目保留 .read 状态（用户可再次点取消已读）
+                if (summary) summary.remove();
             }
 
             // ===== 消息渲染 =====
