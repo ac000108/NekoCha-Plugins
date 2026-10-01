@@ -477,9 +477,12 @@
                 }
 
                 // 点击/拖拽变灰 + 折叠触发
+                // 折叠条件：点击前就已经是灰色（不是本次点击刚变灰的）
+                let wasReadBeforeThisClick = false;
                 div.addEventListener('mousedown', () => {
                     _dragging = true;
                     _dragReadCount = 1;
+                    wasReadBeforeThisClick = div.classList.contains('read');
                     div.classList.add('read');
                 });
                 div.addEventListener('mouseenter', () => {
@@ -490,12 +493,10 @@
                         }
                     }
                 });
-                // 再次单击灰色条目 → 折叠（但如果是拖拽释放产生的 click 就跳过）
                 div.addEventListener('click', () => {
-                    if (_dragReadCount > 1) return;          // 拖拽产生的 click，跳过
-                    if (div.classList.contains('read')) {
-                        collapseRunContaining(div);
-                    }
+                    if (_dragReadCount > 1) return;           // 拖拽跳过
+                    if (!wasReadBeforeThisClick) return;      // 本次点击刚变灰的，跳过
+                    collapseRunContaining(div);                // 之前就灰的 → 折叠
                 });
 
                 return div;
