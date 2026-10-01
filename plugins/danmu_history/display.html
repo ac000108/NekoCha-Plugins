@@ -8,46 +8,19 @@
             margin: 0; padding: 0;
             background: transparent !important;
             height: 100%;
+            overflow: hidden !important;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
             color: #fff;
         }
 
         .history-stage {
             height: 100%;
-            overflow-y: hidden;   /* 彻底隐藏原生滚动条 */
+            overflow-y: hidden;
             overflow-x: hidden;
             padding: 8px 6px 40px 6px;
             display: flex;
             flex-direction: column;
             gap: 4px;
-            scroll-behavior: auto;
-        }
-
-        /* 已读状态变灰 */
-        .danmu-item.read {
-            opacity: 0.35;
-            filter: grayscale(0.6);
-        }
-        /* 折叠时真正隐藏 */
-        .danmu-item.read.hide {
-            display: none;
-        }
-
-        /* 折叠摘要（真正占位） */
-        .collapse-summary {
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-size: 12px;
-            background: rgba(22, 22, 30, 0.5);
-            color: rgba(255,255,255,0.35);
-            cursor: pointer;
-            text-align: center;
-            letter-spacing: 1px;
-            user-select: none;
-        }
-        .collapse-summary:hover {
-            color: rgba(255,255,255,0.6);
-            background: rgba(40,40,55,0.7);
         }
 
         .danmu-item {
@@ -61,13 +34,15 @@
             box-sizing: border-box;
             cursor: pointer;
             transition: opacity 0.2s, filter 0.2s;
-            user-select: text;
+            user-select: none;
         }
 
-        /* 已读 */
         .danmu-item.read {
             opacity: 0.35;
             filter: grayscale(0.6);
+        }
+        .danmu-item.read.hide {
+            display: none;
         }
 
         .collapse-summary {
@@ -272,13 +247,8 @@
                 collapseAdjacent();
             });
 
-            // 全局 mouseup：结束拖拽勾选
-            document.addEventListener('mouseup', () => {
-                if (_dragging) {
-                    _dragging = false;
-                    collapseAdjacent();
-                }
-            });
+            // 全局 mouseup：结束拖拽变灰
+            document.addEventListener('mouseup', () => { _dragging = false; });
 
             // ===== 折叠/展开逻辑 =====
             /**
@@ -467,18 +437,18 @@
                     div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
                 }
 
-                // 拖拽勾选已读：按下滑过连续标记
+                // 拖拽变灰：按下滑过连续标记（只加 .read，不折叠）
                 div.addEventListener('mousedown', (e) => {
-                    e.preventDefault();   // 阻止原生文字选中
+                    e.preventDefault();
                     _dragging = true;
                     div.classList.add('read');
-                    collapseAdjacent();
                 });
                 div.addEventListener('mouseenter', () => {
-                    if (_dragging) {
-                        div.classList.add('read');
-                        collapseAdjacent();
-                    }
+                    if (_dragging) div.classList.add('read');
+                });
+                // 双击已读 → 触发相邻折叠
+                div.addEventListener('dblclick', () => {
+                    if (div.classList.contains('read')) collapseAdjacent();
                 });
 
                 return div;
