@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790830352,
+  "updated_at": 1790830871,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -291,7 +291,7 @@
     {
       "name": "danmu_history",
       "display_name": "弹幕历史",
-      "version": "1.0.6",
+      "version": "1.0.7",
       "description": "全屏高度可滚动的弹幕历史回看窗，点击已读、滚轮翻页",
       "files": [
         {
@@ -301,13 +301,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "ea2b4cf02012b59bfc238044ed022c87a27d19c53a0f6bb3573adf69f6d8775b",
+          "sha256": "7b9eae52c3d1cede28a4fe984e2ff3a99633cc05654adb4da9e106f1c9e846f5",
           "size": 389
         },
         {
           "path": "display.html",
-          "sha256": "850552e33172c4087b2602f1af317dcb895208b36f44128ea469699fb96107df",
-          "size": 20677
+          "sha256": "29d52a9a477405d77f7915f6f7ca181cb0e3790eba3524018081058c2503eb7a",
+          "size": 22632
         }
       ]
     }

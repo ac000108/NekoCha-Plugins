@@ -293,13 +293,51 @@
             }
 
             function expandSummary(summary) {
-                // 下一个兄弟节点开始，连续的 .danmu-item.read.hide 展开直到遇到非 hide
                 let node = summary.nextSibling;
                 while (node && node.classList && node.classList.contains('danmu-item') && node.classList.contains('hide')) {
                     node.classList.remove('hide');
                     node = node.nextSibling;
                 }
                 summary.remove();
+            }
+
+            /**
+             * 折叠指定元素所在的连续已读块（定点折叠，不影响其他块）
+             */
+            function collapseRunContaining(target) {
+                // 先找到 target 对应的"可见块边界"——跳过已 hide 的和 summary
+                // 简化：先把所有 hide 还原，所有 summary 清掉，然后只折 target 周围
+                stage.querySelectorAll(':scope > .danmu-item.read.hide').forEach(el => el.classList.remove('hide'));
+                stage.querySelectorAll(':scope > .collapse-summary').forEach(s => s.remove());
+
+                // 找 target 在 stage.children 里的索引
+                const children = Array.from(stage.children);
+                const idx = children.indexOf(target);
+                if (idx === -1) return;
+
+                // 向左扩展：连续 .danmu-item.read
+                let left = idx;
+                while (left > 0 && stage.children[left-1].classList.contains('danmu-item') && stage.children[left-1].classList.contains('read')) {
+                    left--;
+                }
+                // 向右扩展
+                let right = idx;
+                while (right < stage.children.length - 1 && stage.children[right+1].classList.contains('danmu-item') && stage.children[right+1].classList.contains('read')) {
+                    right++;
+                }
+
+                const count = right - left + 1;
+                if (count < 2) return;   // 至少 2 条才折
+
+                const first = stage.children[left];
+                for (let i = left; i <= right; i++) {
+                    stage.children[i].classList.add('hide');
+                }
+                const summary = document.createElement('div');
+                summary.className = 'collapse-summary';
+                summary.textContent = `▸ ${count} 条已读消息`;
+                first.parentNode.insertBefore(summary, first);
+                summary.addEventListener('click', () => expandSummary(summary));
             }
 
             // ===== 消息渲染 =====
@@ -437,7 +475,7 @@
                     div.appendChild(document.createTextNode(' ' + (msg['留言内容'] || '')));
                 }
 
-                // 拖拽变灰：按下滑过连续标记（只加 .read，不折叠）
+                // 拖拽变灰
                 div.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     _dragging = true;
@@ -446,9 +484,11 @@
                 div.addEventListener('mouseenter', () => {
                     if (_dragging) div.classList.add('read');
                 });
-                // 双击已读 → 触发相邻折叠
-                div.addEventListener('dblclick', () => {
-                    if (div.classList.contains('read')) collapseAdjacent();
+                // 单击灰色条目 → 折叠它所在的连续已读块
+                div.addEventListener('click', () => {
+                    if (!_dragging && div.classList.contains('read')) {
+                        collapseRunContaining(div);
+                    }
                 });
 
                 return div;
