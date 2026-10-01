@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790874602,
+  "updated_at": 1790874999,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -314,13 +314,13 @@
     {
       "name": "netease_player",
       "display_name": "网易云点歌姬",
-      "version": "0.0.5",
+      "version": "0.0.6",
       "description": "",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "f7c46a020526adbb570b2dc125028f88d845bdb6e9b299b9b0b9c868d3788c5b",
-          "size": 7322
+          "sha256": "093bc4244937b51a0c9bd2127f613befa5e670939ecf6abcd8352076d41762b9",
+          "size": 8427
         },
         {
           "path": "_eapi.py",
@@ -334,7 +334,7 @@
         },
         {
           "path": "config.json",
-          "sha256": "e4bbde4570bbd7c8cf7d2695516aaa29b2681551fedb1765edd12a1163197796",
+          "sha256": "4968a8831f97a46fc90d1781f165293c0ca5fbb6cd06a366d27ff7f99e96f681",
           "size": 497
         },
         {

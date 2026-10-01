@@ -18,6 +18,7 @@ netease_player —— 网易云点歌姬（NekoCha 架构）
 import logging
 import re
 import threading
+import urllib.parse
 
 from core.plugin_manager import BasePlugin
 from services import danmu_service
@@ -83,8 +84,11 @@ class NeteasePlayerPlugin(BasePlugin):
             fee = song.get("fee", -1)
             is_trial = song.get("is_trial", False)
             unblocked = song.get("unblocked", False)
+            raw_url = song["url"]
+            play_url = self._proxy_url(raw_url)
             logger.info(f'[{self.name}] 🎵 {song_name} - {artist_name} fee={fee}'
-                        f'{" 🔞试听" if is_trial else ""}{" 🔓解灰" if unblocked else ""}')
+                        f'{" 🔞试听" if is_trial else ""}{" 🔓解灰" if unblocked else ""}'
+                        f' proxy={play_url != raw_url}')
 
             self._sse_broadcast({
                 "cmd": "netease_play",
@@ -94,7 +98,7 @@ class NeteasePlayerPlugin(BasePlugin):
                     "artist": artist_name,
                     "album": song.get("album", ""),
                     "cover": song.get("cover", ""),
-                    "url": song["url"],
+                    "url": play_url,
                     "lrc": song.get("lrc", ""),
                     "tlyric": song.get("tlyric", ""),
                     "yrc": song.get("yrc", ""),
@@ -121,6 +125,30 @@ class NeteasePlayerPlugin(BasePlugin):
             self._notify_reply(f"❌ 点歌失败：{str(e)[:50]}")
 
     # ========== SSE / 通知工具 ==========
+
+    # 这些域名的 CDN 没有 CORS 头，必须经后端代理才能在浏览器里播放
+    _PROXY_REQUIRED_HOSTS = (
+        'kuwo.cn',    # bd-lw.kuwo.cn / bd-er.kuwo.cn / bd-bj.kuwo.cn / bd-lv.kuwo.cn ...
+        'kugou.com',
+        'y.qq.com',
+    )
+
+    def _proxy_url(self, url: str) -> str:
+        """
+        判断 URL 是否来自无 CORS 的 CDN，是的话改写成同源代理路径。
+        网易云官方 (music.126.net) 有 ACAO=* 直接用。
+        """
+        if not url:
+            return url
+        try:
+            parsed = urllib.parse.urlparse(url)
+            host = parsed.hostname or ''
+            if any(host.endswith(d) for d in self._PROXY_REQUIRED_HOSTS):
+                # 同源代理 —— 前端用相对路径，避免又多一层跨域
+                return f'/api/proxy/audio?url={urllib.parse.quote(url, safe="")}'
+        except Exception:
+            pass
+        return url
 
     def _sse_broadcast(self, msg: dict):
         try:
@@ -159,7 +187,7 @@ class NeteasePlayerPlugin(BasePlugin):
                     "name": detail.get("name", ""),
                     "artist": detail.get("artist", ""),
                     "cover": detail.get("cover", ""),
-                    "url": play["url"],
+                    "url": self._proxy_url(play["url"]),
                     "lrc": lyric.get("lrc", ""),
                     "tlyric": lyric.get("tlyric", ""),
                     "yrc": lyric.get("yrc", ""),
