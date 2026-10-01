@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>网易云歌词</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    position: relative;
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: transparent; color: #fff;
+    /* 配色方案 CSS 变量（auto 默认 = 白色高亮 + 冷蓝辉光） */
+    --pc: #ffffff;
+    --pcglow: rgba(120,200,255,0.55);
+  }
+
+  /* ============ DOM 歌词层（word/aria） ============ */
+  .obs-stage {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 10; pointer-events: none;
+  }
+  .lyric-slot {
+    width: 100%; text-align: center;
+    padding: 6px 40px; white-space: nowrap; overflow: hidden;
+  }
+  .lyric-slot.is-active {
+    font-size: 64px; font-weight: 900; letter-spacing: 2px;
+    min-height: 1em; max-width: 1400px;
+    color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,0.35);
+    transition: all 0.55s cubic-bezier(.2,.7,.2,1);
+  }
+  /* 每句歌词入场：轻微上浮 + 去模糊，JS 切行时重触发。
+     aria 走自己的色差入场，均不套整句动画 */
+  body:not(.mode-aria) .lyric-slot.is-active.line-enter {
+    animation: lineEnter 0.5s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes lineEnter {
+    0%   { opacity: 0; transform: translateY(16px) scale(0.965); filter: blur(7px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  .lyric-slot.is-active.placeholder { color: rgba(255,255,255,0.35); font-weight: 500; }
+  .lyric-slot.is-active .w { display: inline-block; }
+
+  /* ============ word 逐字入场（纯视觉，不依赖 timing） ============ */
+  body.mode-word .lyric-slot.is-active {
+    text-shadow: 0 2px 18px rgba(0,0,0,0.35);
+  }
+  body.mode-word .lyric-slot.is-active .w {
+    opacity: 0; transform: translateY(8px) scale(0.9);
+    animation: wordPop 0.38s cubic-bezier(.2,1.4,.3,1) forwards;
+  }
+  @keyframes wordPop {
+    0%   { opacity: 0; transform: translateY(8px) scale(0.9); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  /* word 模式 active 字：Folia 风格 glow 脉冲 + 微放大 */
+  body.mode-word .lyric-slot.is-active .w.active {
+    color: #fff;
+    text-shadow: 0 0 8px rgba(255,255,255,0.75), 0 0 18px rgba(255,255,255,0.45);
+    animation: wordGlow 0.42s cubic-bezier(.2,.7,.2,1);
+  }
+  @keyframes wordGlow {
+    0%   { transform: scale(1.08); }
+    50%  { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+  /* word 模式不走整句 lineEnter 入场（逐字错峰本身就是入场） */
+  body.mode-word .lyric-slot.is-active.line-enter { animation: none; }
+
+  .lyric-slot.is-prev, .lyric-slot.is-next {
+    font-size: 33px; font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    opacity: 0; transform: translateY(-4px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .lyric-slot.is-prev.has-text,
+  .lyric-slot.is-next.has-text { opacity: 1; transform: translateY(0); }
+  .lyric-slot.is-prev { order: 1; }
+  .lyric-slot.is-next { order: 3; }
+
+  /* 只显示当前一句：上/下句槽位隐藏（JS 仍更新内容，零视觉成本） */
+  #slotPrev, #slotNext { display: none !important; }
+
+  /* ============ 唯一的 Canvas 层（13 种 canvas 模式共用） ============ */
+  #fx {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    display: none; z-index: 50; pointer-events: none;
+  }
+  body.use-canvas #fx { display: block; }
+  body.use-canvas .obs-stage { display: none; }
+
+  audio { display: none; }
+
+  /* ============ 彩虹配色（DOM 模式色相流动） ============ */
+  body.pal-rainbow .lyric-slot.is-active {
+    animation: pcRainbow 2.4s linear infinite;
+  }
+  body.pal-rainbow .lyric-slot.is-active .w {
+    animation: pcRainbow 2.4s linear infinite;
+  }
+  @keyframes pcRainbow {
+    from { filter: hue-rotate(0deg); }
+    to   { filter: hue-rotate(360deg); }
+  }
+
+  /* ============ Aria 色差炫光：红青双色分裂常驻整句（含未唱字），
+     入场 4px→2px 收拢，结束保持 2px 色差不收回；当前字色差加重 + 白辉光 ============ */
+  body.mode-aria .lyric-slot.is-active {
+    text-shadow: 2px 0 0 #ff0040, -2px 0 0 #00f0ff, 0 2px 10px rgba(0,0,0,0.35);
+    animation: ariaShake 0.12s ease-in-out infinite alternate;
+  }
+  body.mode-aria .lyric-slot.is-active.line-enter {
+    animation: ariaLineIn 0.42s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes ariaLineIn {
+    0%   { opacity: 0; transform: translateX(-8px); filter: blur(4px);
+           text-shadow: 4px 0 0 #ff0040, -4px 0 0 #00f0ff, 0 2px 10px rgba(0,0,0,0.35); }
+    55%  { opacity: 1; transform: translateX(2px);
+           text-shadow: 2px 0 0 #ff0040, -2px 0 0 #00f0ff, 0 2px 10px rgba(0,0,0,0.35); }
+    100% { opacity: 1; transform: translateX(0); filter: blur(0);
+           text-shadow: 2px 0 0 #ff0040, -2px 0 0 #00f0ff, 0 2px 10px rgba(0,0,0,0.35); }
+  }
+  body.mode-aria .lyric-slot.is-active .w.active {
+    color: #fff;
+    text-shadow: 3px 0 0 #ff0040, -3px 0 0 #00f0ff, 0 0 14px rgba(255,255,255,0.6);
+    /* aria 招牌：唱到瞬间色差撕裂到 6px 再快速收回 3px（类切换时自动重放，
+       末帧与上方常态完全一致，不残留跳动） */
+    animation: ariaGlitch 0.28s cubic-bezier(.3,.9,.3,1) both;
+  }
+  @keyframes ariaGlitch {
+    0%   { text-shadow: 6px 0 0 #ff0040, -6px 0 0 #00f0ff, 0 0 20px rgba(255,255,255,0.85); }
+    45%  { text-shadow: 2px 0 0 #ff0040, -2px 0 0 #00f0ff, 0 0 14px rgba(255,255,255,0.6); }
+    100% { text-shadow: 3px 0 0 #ff0040, -3px 0 0 #00f0ff, 0 0 14px rgba(255,255,255,0.6); }
+  }
+  /* aria + 彩虹配色：glitch 管 text-shadow，rainbow 继续管 filter 色相循环（特异性更高，覆盖上面的单动画） */
+  body.pal-rainbow.mode-aria .lyric-slot.is-active .w.active {
+    animation: ariaGlitch 0.28s cubic-bezier(.3,.9,.3,1) both, pcRainbow 2.4s linear infinite;
+  }
+  @keyframes ariaShake {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(1px); }
+  }
+
+  /* ============ 颜色主题 ============ */
+  body.theme-neon .lyric-slot.is-active .w.active {
+    color: #00f0ff;
+    text-shadow: 0 0 8px #00f0ff, 0 0 24px #00f0ff, 0 0 48px #ff00e0;
+  }
+  body.theme-neon .lyric-slot.is-active { text-shadow: 0 0 18px rgba(0,240,255,0.5); }
+  body.theme-neon .lyric-slot.is-prev,
+  body.theme-neon .lyric-slot.is-next { color: rgba(0,240,255,0.4); }
+  body.theme-gradient .lyric-slot.is-active {
+    background: linear-gradient(90deg, #ff6ec7, #ffd86e, #6effd8, #6eb5ff, #c96eff, #ff6ec7);
+    background-size: 400% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: flowShift 5s linear infinite;
+    filter: drop-shadow(0 0 14px rgba(255,255,255,0.3));
+  }
+  @keyframes flowShift { 0% { background-position: 0% 50%; } 100% { background-position: 400% 50%; } }
+
+  /* 性能探针：默认不渲染零开销，F8 开关（定位卡顿用，不属于任何效果） */
+  #perf {
+    display: none; position: fixed; left: 8px; top: 8px; z-index: 9999;
+    pointer-events: none; font: 11px/1.55 ui-monospace, Consolas, monospace;
+    background: rgba(0,0,0,0.72); color: #7cfc00; padding: 6px 9px;
+    border-radius: 5px; white-space: pre; text-align: left;
+  }
+  #perf.on { display: block; }
+</style>
+</head>
+<body>
+
+<div class="obs-stage" id="obsStage">
+  <div class="lyric-slot" id="slotPrev"></div>
+  <div class="lyric-slot" id="slotCurr"></div>
+  <div class="lyric-slot" id="slotNext"></div>
+</div>
+
+<canvas id="fx"></canvas>
+
+<audio id="audio"></audio>
+
+<script>
+'use strict';
+/* =====================================================================
+ * NekoCha 适配：从 URL 解析 room_id / plugin_name（display.html 通过 HTTP URL 加载）
+ * 视口尺寸：用标准 window.innerWidth/innerHeight
+ * ===================================================================== */
+const _parts = location.pathname.split('/').filter(Boolean);
+const ROOM_ID = _parts[1] || null;
+const PLUGIN_NAME = _parts[3] || null;
+
+window.VW = window.innerWidth || 1920;
+window.VH = window.innerHeight || 1080;
+let VW = window.VW, VH = window.VH;
+
+function _forceHtmlBodySize() {
+  const de = document.documentElement, b = document.body;
+  de.style.width = de.style.minWidth = VW + 'px';
+  de.style.height = de.style.minHeight = VH + 'px';
+  b.style.width = b.style.minWidth = VW + 'px';
+  b.style.height = b.style.minHeight = VH + 'px';
+}
+_forceHtmlBodySize();
+window.__onQtResize = function(w, h) {
+  VW = w; VH = h; window.VW = w; window.VH = h;
+  _forceHtmlBodySize();
+  resizeCanvas();
+  setCanvasLine(canvasIdx, true);
+  if (typeof slotCurr !== 'undefined') _fitSlotFont(slotCurr);
+};
+
+/* =====================================================================
+ * 全局状态
+ * ===================================================================== */
+const FONT = '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+
+/* 统一字号口径：所有模式的主歌词字号都从这里取，保证歌词尺寸与窗口尺寸严格匹配。
+   宽窗口按 5% 窗宽；仅在矮宽横幅窗（如 960×200）按 34% 窗高兜底，
+   保证单行（含 1.4 行高）不超出窗口，常规窗口该兜底不生效。
+   各模式只允许在此基础上乘固定比例系数，禁止再写死 px 或自创 VW/VH 比例。 */
+function _lyricBaseFs() {
+  return Math.round(Math.min(VW * 0.05, VH * 0.34));
+}
+/* terminal 终端矩阵字符大小：基准字号的 0.19（默认窗 12px），最小 9px 保证可读 */
+function _glyphFs() {
+  return Math.max(9, Math.round(_lyricBaseFs() * 0.19));
+}
+
+const DOM_MODES  = ['word', 'aria'];
+const FX_MODES   = ['particle','stroke','gravity','glow','terminal','pixel','sweep','cadenza','tilt','claddagh'];
+const ALL_MODES  = DOM_MODES.concat(FX_MODES);
+/* 旧效果名 → 合并后效果（旧配置/已开窗口自动归一，不会失效）：
+   tilt/monet → aria；scramble → word；aurora/fume/ripple → particle；
+   matrix/crt → terminal；pendolo/claddagh → glow */
+const MODE_ALIAS = {
+  tilt: 'aria', monet: 'aria', scramble: 'word',
+  aurora: 'particle', fume: 'particle', ripple: 'particle',
+  matrix: 'terminal', crt: 'terminal',
+  pendolo: 'glow', claddagh: 'glow',
+};
+
+let lines = [];
+let domIdx = -1;       // 真实时间的当前行（DOM 显示）
+let canvasIdx = -1;    // 提前 0.2s 的当前行（canvas 动画）
+let currentMode = 'particle';
+let currentConfig = { mode: 'particle', color: 'auto', placeholder_text: '' };
+
+/* =====================================================================
+ * 配色方案（与动效形态完全解耦，可任意组合）
+ *   auto    = 每种效果保留自己的原生色
+ *   其余    = 强制覆盖：粒子 / 矩阵 / 金属 / CRT / 霓虹 / DOM 高亮
+ * ===================================================================== */
+const PALETTES = {
+  auto:    null,
+  white:   { h: 0,   s: 0,   l: 100, hex: '#ffffff', glow: '#ffffff' },
+  cyan:    { h: 187, s: 100, l: 55,  hex: '#00e5ff', glow: '#00f0ff' },
+  pink:    { h: 318, s: 100, l: 62,  hex: '#ff3cc8', glow: '#ff3cc8' },
+  gold:    { h: 45,  s: 90,  l: 62,  hex: '#ffc94d', glow: '#ffd86e' },
+  purple:  { h: 275, s: 100, l: 72,  hex: '#c96eff', glow: '#c96eff' },
+  green:   { h: 145, s: 100, l: 55,  hex: '#00ff78', glow: '#00ff78' },
+  rainbow: { rainbow: true },
+};
+let currentPalette = 'auto';
+
+/* =====================================================================
+ * 粒子密度（字高切分数 divN，改采样间距，30ms 内对下一次 retarget 生效）
+ * ===================================================================== */
+const DENSITY_TABLE = {
+  low:     { divN: 8  },   // 字高切 8 段 → 8×8 点阵感
+  medium:  { divN: 12 },
+  high:    { divN: 16 },
+  ultra:   { divN: 22 },
+  extreme: { divN: 32 },
+};
+let currentDensity = 'ultra';
+let currentShape = 'circle';
+
+/* =====================================================================
+ * 粒子形状：一次性预渲染到离屏小贴图（实测该 QtWebEngine 分层透明窗内
+ * ctx.arc 路径指令约 25µs/个——1511 个圆仅"构建路径"就 40ms，而光栅化
+ * fill 仅 1ms；drawImage 贴图每帧数千次仍 <2ms，与 terminal 字符贴图同方案）。
+ * 按「形状 × 半径档 × 纯色 × DPR」缓存，半径量化到 0.5px（粒子半径仅
+ * 1.3~3.2，半档差异不可见），arc 代价只在首次构建贴图时支付一次。 */
+const _dotSpriteCache = new Map();
+function _dotRadiusLevel(r) {
+  let l = Math.round(r * 2) / 2;
+  if (l < 1) l = 1;
+  return l;
+}
+function _dotSpriteShape(c, shape, R) {
+  switch (shape) {
+    case 'square':
+      c.fillRect(-R, -R, R * 2, R * 2);
+      break;
+    case 'diamond':
+      c.beginPath();
+      c.moveTo(0, -R); c.lineTo(R, 0); c.lineTo(0, R); c.lineTo(-R, 0);
+      c.closePath(); c.fill();
+      break;
+    case 'star4': {
+      c.beginPath();
+      c.moveTo(0, -R);
+      for (let i = 1; i < 8; i++) {
+        const ang = -Math.PI / 2 + (i * Math.PI / 4);
+        const rr = (i % 2 === 0) ? R : R * 0.42;
+        c.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr);
+      }
+      c.closePath(); c.fill();
+      break;
+    }
+    case 'stroke':
+      // 空心圆：arc 必须 closePath，否则圆环有开口缺口
+      c.beginPath();
+      c.arc(0, 0, R, 0, Math.PI * 2);
+      c.closePath();
+      c.lineWidth = 1.2; c.stroke();
+      break;
+    case 'circle':
+    default:
+      c.beginPath();
+      c.arc(0, 0, R, 0, Math.PI * 2);
+      c.closePath();
+      c.fill();
+  }
+}
+function _getDotSprite(shape, R, solid) {
+  const dpr = window.devicePixelRatio || 1;
+  const key = shape + '|' + R + '|' + dpr + '|' + solid;
+  let sp = _dotSpriteCache.get(key);
+  if (sp) return sp;
+  if (_dotSpriteCache.size > 1024) _dotSpriteCache.clear();  // 防取色拖动产生海量色值
+  const pad = shape === 'stroke' ? 2 : 1;                    // 描边外扩 0.6+抗锯齿
+  const S = R * 2 + pad * 2;
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(S * dpr); cv.height = Math.ceil(S * dpr);
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (shape === 'stroke') c.strokeStyle = solid; else c.fillStyle = solid;
+  c.translate(S / 2, S / 2);
+  _dotSpriteShape(c, shape, R);
+  sp = { cv, s: S };
+  _dotSpriteCache.set(key, sp);
+  return sp;
+}
+function _applyParticleConfig() {
+  // 密度档只给 divN（字号切分数），像素大小由 particle_size 配置控制
+  const divN = (DENSITY_TABLE[currentDensity] || DENSITY_TABLE.ultra).divN;
+  const sizeMul = currentConfig.particle_size ?? 0.75;
+  for (const k of Object.keys(PARTICLE_MODES)) {
+    PARTICLE_MODES[k].divN = divN;
+    PARTICLE_MODES[k].sizeMul = sizeMul;
+  }
+  if (FX_MODES.indexOf(currentMode) >= 0) setCanvasLine(canvasIdx, true);
+}
+
+function hexToRgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/* 自定义 hex → hsl 分量（供 hsla 桶/像素风上色）；按 hex 值缓存，改色才重算 */
+let _customHsl = null, _customHslHex = '';
+function _customHslColor() {
+  const hex = currentConfig.custom_color || '#60a5fa';
+  if (_customHslHex !== hex) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const l = (mx + mn) / 2, d = mx - mn;
+    const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+    let h = 0;
+    if (d) {
+      if (mx === r) h = ((g - b) / d) % 6;
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    _customHsl = { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+    _customHslHex = hex;
+  }
+  return _customHsl;
+}
+
+/* canvas 文字类效果统一取色：
+ *   nativeHex/nativeGlow = auto 方案下该效果的原生色
+ *   rainbow = 随时间流动的色相
+ * 非 rainbow 结果与帧无关，按 配色+原生色 签名缓存（glow/stroke 每帧调用，旧版每帧 new 对象） */
+let _palCache = null;
+function _paletteColor(nativeHex, nativeGlow) {
+  if (currentPalette === 'rainbow') {
+    const hue = (performance.now() / 25) % 360;
+    return { fill: `hsl(${hue},100%,64%)`, glow: `hsl(${hue},100%,60%)` };
+  }
+  // custom 分支颜色值随用户选色变化，key 必须带上 hex，否则换色后 glow 辉光仍用旧色
+  const key = currentPalette + '|'
+    + (currentPalette === 'custom' ? (currentConfig.custom_color || '#60a5fa') : '')
+    + '|' + nativeHex + '|' + (nativeGlow || '');
+  if (_palCache && _palCache.key === key) return _palCache.val;
+  let val;
+  if (currentPalette === 'auto') {
+    val = { fill: nativeHex, glow: nativeGlow || nativeHex };
+  } else if (currentPalette === 'custom') {
+    // 用户选的 hex 直接用，辉光色稍微调亮一点
+    const hex = currentConfig.custom_color || '#60a5fa';
+    val = { fill: hex, glow: hex };
+  } else {
+    const pal = PALETTES[currentPalette];
+    val = { fill: pal.hex, glow: pal.glow };
+  }
+  _palCache = { key, val };
+  return val;
+}
+
+function applyPalette(name) {
+  if (!PALETTES.hasOwnProperty(name) && name !== 'custom') name = 'auto';
+  currentPalette = name;
+  currentConfig.color = name;
+  document.body.classList.toggle('pal-rainbow', name === 'rainbow');
+  const pal = PALETTES[name];
+  // DOM 模式用 CSS 变量着色
+  if (pal && !pal.rainbow) {
+    document.body.style.setProperty('--pc', pal.hex);
+    document.body.style.setProperty('--pcglow', pal.glow);
+  } else if (pal && pal.rainbow) {
+    document.body.style.setProperty('--pc', '#ff5e5e');
+    document.body.style.setProperty('--pcglow', '#5ec8ff');
+  } else if (name === 'custom') {
+    const hex = currentConfig.custom_color || '#60a5fa';
+    document.body.style.setProperty('--pc', hex);
+    document.body.style.setProperty('--pcglow', hex);
+  } else {
+    document.body.style.removeProperty('--pc');
+    document.body.style.removeProperty('--pcglow');
+  }
+  // 颜色即时生效、零扰动：canvas 各绘制路径每帧实时读 currentPalette/custom_color
+  //（dots 标量解析、pixel style 签名、terminal 贴图签名、stroke/glow 分支），
+  // 换色不需要 retarget 粒子几何。旧版此处强制整句重采样（getImageData 同步回读 +
+  // 上万粒子重排散开），拖动取色器每改一次色就掉帧、字形炸散重聚一次
+}
+
+const slotCurr = document.getElementById('slotCurr');
+/* slotPrev/slotNext 已由 CSS 永久隐藏（只显示当前一句），JS 不再持有 */
+
+/* =====================================================================
+ * 配置 / 模式切换
+ * ===================================================================== */
+function applyMode(mode) {
+  if (!mode) return currentMode;
+  mode = MODE_ALIAS[mode] || mode;
+  if (ALL_MODES.indexOf(mode) < 0) mode = 'particle';
+  const isFX = FX_MODES.indexOf(mode) >= 0;
+  ALL_MODES.forEach(m => document.body.classList.remove('mode-' + m));
+  document.body.classList.add('mode-' + mode);
+  document.body.classList.toggle('use-canvas', isFX);
+  // 保险：强制 obs-stage/canvas 显隐（CSS 选择器依赖 body class，这里再兜底一次）
+  _obsStage.style.display = isFX ? 'none' : '';
+  cv.style.display = isFX ? '' : 'none';
+  currentMode = mode;
+  window.__lastMode = mode;
+  resetModeState();
+  setCanvasLine(canvasIdx, true);
+  // canvas 模式下当前句只渲染了纯文本；切回 DOM 模式需重建逐字节点/入场结构
+  if (FX_MODES.indexOf(mode) < 0 && domIdx !== -2) {
+    const di = domIdx;
+    domIdx = -2;
+    updateDomLine(di < 0 ? -1 : di);
+  }
+  return mode;
+}
+
+async function refreshConfig() {
+  try {
+    const cfgResp = await fetch('/rooms/' + ROOM_ID + '/plugins/' + PLUGIN_NAME + '/config');
+    const cfg = (await cfgResp.json()) || {};
+    if (cfg.mode) {
+      const normMode = MODE_ALIAS[cfg.mode] || cfg.mode;
+      if (normMode !== currentConfig.mode) {
+        currentConfig.mode = applyMode(normMode);
+      }
+    }
+    if (cfg.color !== undefined && cfg.color !== currentConfig.color) {
+      applyPalette(cfg.color);
+    }
+    // custom 颜色单独处理（配色方案已是 custom 时，改 color picker 也要立即生效）
+    if (cfg.custom_color !== undefined && cfg.custom_color !== currentConfig.custom_color) {
+      currentConfig.custom_color = cfg.custom_color;
+      if (currentPalette === 'custom') applyPalette('custom');
+    }
+    if (cfg.theme && cfg.theme !== currentConfig.theme) {
+      document.body.classList.remove('theme-neon', 'theme-gradient');
+      if (cfg.theme !== 'default') document.body.classList.add('theme-' + cfg.theme);
+      currentConfig.theme = cfg.theme;
+    }
+    if (cfg.placeholder_text !== undefined && cfg.placeholder_text !== currentConfig.placeholder_text) {
+      currentConfig.placeholder_text = cfg.placeholder_text;
+      if (domIdx < 0) { domIdx = -2; updateDomLine(-1); }  // 破 -1 同值守卫强制重渲染
+      if (canvasIdx < 0) setCanvasLine(-1, true);
+    }
+    // 粒子密度 / 形状 / 像素大小
+    let particleCfgChanged = false;
+    if (cfg.particle_density !== undefined && cfg.particle_density !== currentDensity) {
+      currentDensity = cfg.particle_density; currentConfig.particle_density = cfg.particle_density;
+      particleCfgChanged = true;
+    }
+    if (cfg.particle_shape !== undefined && cfg.particle_shape !== currentShape) {
+      currentShape = cfg.particle_shape; currentConfig.particle_shape = cfg.particle_shape;
+      particleCfgChanged = true;
+    }
+    if (cfg.particle_size !== undefined && cfg.particle_size !== currentConfig.particle_size) {
+      currentConfig.particle_size = cfg.particle_size;
+      particleCfgChanged = true;
+    }
+    if (particleCfgChanged) _applyParticleConfig();
+  } catch (e) {}
+}
+refreshConfig();
+// 3 秒轮询已移除——现在 SSE config_changed 事件即时推达，refreshConfig 由 EventSource 触发
+
+/* =====================================================================
+ * 歌词解析（LRC）
+ * ===================================================================== */
+const LINE_HEAD_RE = /^\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+
+function parseLRC(lrcText) {
+  if (!lrcText) return [];
+  const result = [];
+  for (const rawLine of lrcText.split('\n')) {
+    const times = [];
+    let pos = 0;
+    const headRe = new RegExp(LINE_HEAD_RE.source);
+    while (true) {
+      const m = headRe.exec(rawLine.slice(pos));
+      if (!m) break;
+      const ms = m[3].length === 3 ? parseInt(m[3]) : parseInt(m[3]) * 10;
+      times.push(parseInt(m[1]) * 60 + parseInt(m[2]) + ms / 1000);
+      pos += m[0].length; headRe.lastIndex = 0;
+    }
+    if (!times.length) continue;
+    const text = rawLine.slice(pos).trim();
+    if (!text || text.startsWith('[by:')) continue;
+    for (const t of times) result.push({start: t, text, words: [{text, start: t, end: t}]});
+  }
+  result.sort((a, b) => a.start - b.start);
+  for (let i = 0; i < result.length; i++) {
+    const line = result[i];
+    line.end = i + 1 < result.length ? result[i+1].start : line.start + 3;
+    // stroke 按字符切 word：每个字均分该行时长（YRC 删掉后无逐字时间戳，均分是唯一方案）
+    const chars = [...line.text];
+    const dur = line.end - line.start;
+    const per = dur / Math.max(chars.length, 1);
+    line.words = chars.map((c, j) => ({
+      text: c,
+      start: line.start + j * per,
+      end: line.start + (j + 1) * per,
+    }));
+  }
+  return result;
+}
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =====================================================================
+ * DOM 行渲染（真实时间）
+ * ===================================================================== */
+/* 当前句字号口径：= _lyricBaseFs()，超宽就整行缩到放下为止
+   （CSS nowrap+overflow:hidden 会硬裁切）。窗口尺寸变化时由 __onQtResize 重新调用。
+   上/下句槽位 CSS 永久 display:none，无需测量与更新。 */
+const SLOT_PAD_X = 80;  // .lyric-slot 左右 padding 40px ×2
+function _applySlotFs(slot, base) {
+  if (!slot) return;
+  slot.style.fontSize = base + 'px';
+  const availW = slot.clientWidth - SLOT_PAD_X;
+  const contentW = slot.scrollWidth - SLOT_PAD_X;
+  if (availW > 0 && contentW > availW && contentW > 0) {
+    slot.style.fontSize = Math.max(12, Math.floor(base * availW / contentW)) + 'px';
+  }
+}
+function _fitSlotFont(slot) {
+  if (slot) _applySlotFs(slot, _lyricBaseFs());
+}
+
+function updateDomLine(idx) {
+  if (idx === domIdx) return;
+  domIdx = idx;
+
+  if (idx >= 0 && idx < lines.length) {
+    // canvas 模式 DOM 层整体隐藏：只需纯文本（切回 DOM 模式时 applyMode 会强制重建本句）
+    const useDom = FX_MODES.indexOf(currentMode) < 0;
+    const isWord = useDom && document.body.classList.contains('mode-word');
+    // 短停留行（前奏歌手/制作信息等）压缩逐字错峰：保证整句在切走前浮完。
+    // dwell<0.6s 整批同浮（0.4s 内完成）；<1s 用半档错峰；正常行标准 0.03s/字
+    let dwell = Infinity;
+    if (idx + 1 < lines.length) dwell = lines[idx + 1].start - lines[idx].start;
+    const wstep = dwell < 0.6 ? 0 : (dwell < 1 ? 0.015 : 0.03);
+
+    const isAria = useDom && document.body.classList.contains('mode-aria');
+    if (isWord || isAria) {
+      // word/aria：逐字 span（word 有错峰入场，aria 要加 .active glitch）
+      slotCurr.innerHTML = [...lines[idx].text].map((ch, i) =>
+        `<span class="w"${isWord && wstep ? ` style="animation-delay:${(i*wstep).toFixed(2)}s"` : ''}">${esc(ch)}</span>`
+      ).join('');
+      // 记录当前行的 timing 引用，供 _domWordTick 逐字高亮
+      slotCurr._lineRef = lines[idx];
+    } else {
+      // aria：整句一次性显示（色差常驻 + 入场故障收拢由 CSS 负责）；canvas 模式：纯文本占位
+      slotCurr.textContent = lines[idx].text;
+    }
+    slotCurr.className = 'lyric-slot is-active';
+    // 重触发入场动画；短停留行压缩整句入场时长（aria 色差收拢等）
+    slotCurr.classList.remove('line-enter');
+    slotCurr.style.animationDuration = (useDom && dwell < 0.6) ? '0.25s' : '';
+    void slotCurr.offsetWidth;
+    slotCurr.classList.add('line-enter');
+  } else {
+    const ph = currentConfig.placeholder_text || '';
+    slotCurr.textContent = ph;
+    slotCurr.className = ph ? 'lyric-slot is-active placeholder' : 'lyric-slot';
+  }
+  _fitSlotFont(slotCurr);
+}
+/* 入场动画结束后摘掉 line-enter：aria 入场（transform）结束后让常驻微抖接管，
+   其余模式摘掉也无副作用。只认槽位自身的 animationend（.w 子元素的冒泡事件忽略）。 */
+slotCurr.addEventListener('animationend', (e) => {
+  if (e.target === slotCurr) slotCurr.classList.remove('line-enter');
+});
+
+/* DOM word/aria 逐字 timing 高亮：根据 audioEl.currentTime 找当前 active 字，
+   给对应 span.w 加 .active 类；aria 用 glitch 脉冲，word 用 active glow。
+   LRC 无逐字 timing 时，parseLRC 已均匀分配了 start/end。 */
+function _domWordTick(t) {
+  const line = slotCurr._lineRef;
+  if (!line || !line.words) return;
+  const children = slotCurr.children;
+  let activeIdx = -1;
+  for (let i = 0; i < line.words.length && i < children.length; i++) {
+    const w = line.words[i];
+    if (t >= w.start && t <= w.end) { activeIdx = i; break; }
+  }
+  for (let i = 0; i < children.length; i++) {
+    const el = children[i];
+    if (!el.classList) continue;
+    if (i === activeIdx) el.classList.add('active');
+    else el.classList.remove('active');
+  }
+}
+
+
+/* =====================================================================
+ * 单一 Canvas
+ * ===================================================================== */
+const cv = document.getElementById('fx');
+const ctx = cv.getContext('2d');
+const audioEl = document.getElementById('audio');  // 静态元素，缓存引用避免每帧查表
+const _obsStage = document.getElementById('obsStage');
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(VW * dpr);
+  cv.height = Math.round(VH * dpr);
+  cv.style.width = VW + 'px';
+  cv.style.height = VH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeCanvas();
+
+/* =====================================================================
+ * 文字采样核心 —— 离屏 canvas 把文字渲染成像素点阵
+ * 所有"粒子文字"模式共用，保证目标点 100% 落在文字形状上
+ * ===================================================================== */
+const _sampleCanvas = document.createElement('canvas');
+const _sampleCtx = _sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+/* 单行文字字号自适应：以 baseFs 起步，超 92% 窗宽或 80% 窗高就缩，返回最终字号并写好 ctx.font */
+function _fitSingleLineFont(c2d, text, baseFs, weight) {
+  let fs = baseFs;
+  c2d.font = `${weight} ${fs}px ${FONT}`;
+  const maxW = VW * 0.92;
+  let w = c2d.measureText(text).width;
+  if (w > maxW) {
+    fs = Math.floor(fs * maxW / w);
+    c2d.font = `${weight} ${fs}px ${FONT}`;
+  }
+  const fsByH = Math.floor((VH * 0.8) / 1.4);
+  if (fs > fsByH) {
+    fs = fsByH;
+    c2d.font = `${weight} ${fs}px ${FONT}`;
+  }
+  return fs;
+}
+
+/* 同一行文字的字号测量缓存：glow/占位每帧重绘但文字与窗口不变，
+   命中时只设 font（极廉价）不做 measureText；切句/改窗口/改占位即失效。
+   采样走 _sampleCtx、切句仅一次，不使用此缓存。 */
+const _fitCache = { key: '', fs: 0 };
+function _fitFontCached(text, baseFs, weight) {
+  const key = weight + '|' + baseFs + '|' + VW + '|' + VH + '|' + text;
+  if (_fitCache.key !== key) {
+    _fitCache.fs = _fitSingleLineFont(ctx, text, baseFs, weight);
+    _fitCache.key = key;
+  } else {
+    ctx.font = `${weight} ${_fitCache.fs}px ${FONT}`;
+  }
+  return _fitCache.fs;
+}
+
+/* 未播放时的统一占位：实心居中文字（不跑粒子物理，避免散点聚不成字）。
+   样式与 DOM 占位一致：35% 白、常规字重 */
+function drawPlaceholder() {
+  const ph = currentConfig.placeholder_text || '';
+  if (!ph) return;
+  _fitFontCached(ph, _lyricBaseFs(), 500);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillText(ph, VW / 2, VH / 2);
+}
+
+function sampleText(text, mode) {
+  if (!text) return [];
+  const cx = VW / 2, cy = VH / 2;
+  _sampleCanvas.width = VW; _sampleCanvas.height = VH;
+  const sc = _sampleCtx;
+  sc.textAlign = 'center';
+  sc.textBaseline = 'middle';
+  const fontSize = _fitSingleLineFont(sc, text, _lyricBaseFs(), 900);
+  const tw = sc.measureText(text).width;
+  const w = Math.ceil(tw) + 24;
+  const h = Math.ceil(fontSize * 1.4);
+  // 统一 gap = fontSize / divN：所有模式按字号切分，不封顶
+  const divN = (mode && PARTICLE_MODES[mode]?.divN) || 22;
+  const gap = Math.max(1.5, fontSize / divN);
+  if (mode) _currentGap[mode] = gap;
+  sc.fillStyle = '#fff';
+  sc.fillText(text, cx, cy);
+  const ox = Math.round(cx - w / 2), oy = Math.round(cy - h / 2);
+  const data = sc.getImageData(ox, oy, w, h).data;
+  const pts = [];
+  // 栅格起点对齐到 gap 整数倍（保证所有采样点落在整齐格点上）
+  const gx0 = Math.round(ox / gap) * gap;
+  const gy0 = Math.round(oy / gap) * gap;
+  for (let y = gy0; y < oy + h; y += gap)
+    for (let x = gx0; x < ox + w; x += gap) {
+      const lx = Math.round(x - ox), ly = Math.round(y - oy);
+      if (lx < 0 || ly < 0 || lx >= w || ly >= h) continue;
+      if (data[(ly * w + lx) * 4 + 3] > 128) pts.push({x, y});
+    }
+  sc.clearRect(0, 0, VW, VH);
+  return pts;
+}
+
+/* =====================================================================
+ * 统一粒子引擎
+ * 粒子 = { x,y,vx,vy, tx,ty, size,hue,alpha, glyph, glyphTimer, burst }
+ * 每个模式只提供：采样参数 / 出生样式 / 受力 / 绘制方式
+ * gap 统一由 divN（字号切分数）控制，所有模式共享
+ * ===================================================================== */
+const parts = [];
+// 现存 4 种：particle 圆点聚合 / gravity 抛物 / terminal 终端字符 / pixel 方块像素
+// 每种只有 sizeMul（粒子尺寸倍率，决定视觉风格），divN 由密度档统一注入
+const PARTICLE_MODES = {
+  particle: { sizeMul: 0.75 },   // 粒子 = gap×0.75，整齐栅格感
+  gravity:  { sizeMul: 0.75 },
+  terminal: { sizeMul: 1.0 },
+  pixel:    { sizeMul: 0.8  },   // 方块 = gap×0.8，缝隙 = 0.2×gap
+};
+// 统一 spring 参数：K=0.13/DAMP=0.64（轻微欠阻尼），9 帧（150ms）从 100px 外收敛到 2px 内，
+// 带约 5px 的一次性小回弹——成形比旧版快 3 帧且更有弹性；40px 散布仅 2px 回弹，稳。
+const SPRING_K = 0.13, SPRING_DAMP = 0.64;
+const TERMINAL_GLYPHS = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789Z';
+
+function _rand(a, b) { return a + Math.random() * (b - a); }
+
+function _spawnParticle(mode, tx, ty, isNew) {
+  const cx = VW / 2, cy = VH / 2;
+  const p = { tx, ty, x: tx, y: ty, vx: 0, vy: 0, size: 1, hue: 200, alpha: 1, burst: 0, glyph: '', glyphTimer: 0 };
+  switch (mode) {
+    case 'particle': {
+      const _g = _currentGap.particle || 2, _s = _g * PARTICLE_MODES.particle.sizeMul;
+      p.x = tx + _rand(-40, 40); p.y = ty + _rand(-40, 40);
+      p.size = _s * _rand(0.8, 1.2);
+      p.hue = _rand(185, 255);
+      p.alpha = _rand(0.88, 1);
+      p.ph = Math.random() * Math.PI * 2;   // 星尘漂浮相位（错相）
+      break;
+    }
+    case 'gravity': {
+      const _g = _currentGap.gravity || 2, _s = _g * PARTICLE_MODES.gravity.sizeMul;
+      p.x = tx + _rand(-40, 40); p.y = ty + _rand(-40, 40);
+      p.size = _s * _rand(0.8, 1.2); p.hue = _rand(285, 350); p.alpha = _rand(0.88, 1);
+      // 出生即带抛射（parts 为空的首句也要有抛物线，旧版仅 retarget 给旧粒子设初速→首句缺失）
+      p.vx = _rand(-2.5, 2.5); p.vy = _rand(-3.5, -1.5);
+      p.burst = 1; p.bounce = 0; p.bt = 20;
+      break;
+    }
+    case 'terminal':
+      // 终端字符：片假名/数字，绿色，出生即带斜飞入速度
+      p.x = tx + _rand(-50, 50); p.y = ty + _rand(-50, 50);
+      p.vx = _rand(-1.5, 1.5); p.vy = _rand(-2, -0.3);
+      p.size = _glyphFs();
+      p.glyph = TERMINAL_GLYPHS[Math.floor(Math.random() * TERMINAL_GLYPHS.length)];
+      p.glyphTimer = Math.random() * 25;
+      p.hue = 130;
+      break;
+    case 'pixel': {
+      // 方块像素直接在格点出生；bt 留给 _pixelBlink 首次调用时随机错峰
+      const _g = _currentGap.pixel || 3;
+      p.size = _g * PARTICLE_MODES.pixel.sizeMul;
+      p.on = 1; p.a = 1;
+      break;
+    }
+  }
+  // 彩虹方案：每个粒子分配固定全光谱 hue（其他方案在绘制时统一解析）
+  if (currentPalette === 'rainbow') p.hue = Math.random() * 360;
+  return p;
+}
+
+/* 像素风换字：逐行扫描入场（老式点阵字体招牌）
+   - pts 从 sampleText 出来时按 y 行优先排列，每行 gap 间隔 = 一整排水平线
+   - 每行延迟 1 帧依次点亮（从上到下），行越多字越宽 → 扫描帧越多但 ≤20 行≈320ms
+   - 复用旧粒子也强制重排 bt（换字就要重新扫描）；新粒子初始 alpha=0 等 bt 到 0
+   - 成形后 _pixelBlink 接管闪烁，入场状态自然消失 */
+function _pixelRetarget(pts) {
+  // 先遍历 pts 按 y 分组给每行一个 scanId（0,1,2...）
+  const rowIds = new Map();  // y → rowIndex
+  let rowIdx = 0, lastY = null;
+  for (let i = 0; i < pts.length; i++) {
+    const y = pts[i].y;
+    if (y !== lastY) { rowIds.set(y, rowIdx++); lastY = y; }
+  }
+  const totalRows = rowIdx;
+  for (let i = 0; i < pts.length; i++) {
+    const scanId = rowIds.get(pts[i].y) || 0;
+    if (parts[i]) {
+      const p = parts[i];
+      p.tx = pts[i].x; p.ty = pts[i].y;
+      p.x = pts[i].x; p.y = pts[i].y;
+      p.vx = 0; p.vy = 0;
+    } else {
+      parts[i] = _spawnParticle('pixel', pts[i].x, pts[i].y, true);
+    }
+    const p = parts[i];
+    // 入场延迟：行数越多字越宽，最多限 20 行防长句过慢
+    p._scanDelay = Math.min(scanId, 19);
+    p.bt = -p._scanDelay;   // 负 bt = "还没到入场时间"，_pixelBlink 逐帧加到 ≥0
+    p.a = 0;                // 初始全暗，等 bt 到 0 自动开亮
+    p.on = 1;               // 亮了之后的闪烁基态
+  }
+  parts.length = pts.length;
+}
+
+function retarget(mode, text) {
+  // 兜底：强制清空旧粒子，防止启动链路多次 retarget 叠加导致的双倍重叠
+  parts.length = 0;
+  const pts = sampleText(text, mode);
+  // 重力模式：粒子小幅斜抛做短抛物线，之后走"重力帧 + spring 回收"混合。
+  // bt 硬封顶 20 帧（≈0.33s）：无论飞多远都结束自由飞行，交回标准 spring，
+  // 保证长句也在淡入结束时成形（旧版抛射+两次反弹可达 2s+）。
+  if (mode === 'gravity') {
+    for (const p of parts) {
+      p.vx = _rand(-2.5, 2.5);
+      p.vy = _rand(-3.5, -1.5);
+      p.burst = 1;  // 标记为"刚 retarget，还在自由飞行"
+      p.bounce = 0;  // 剩余反弹次数
+      p.bt = 20;     // 自由飞行帧预算
+    }
+  }
+  if (mode === 'terminal') {
+    for (const p of parts) { p.vx += _rand(-1.5, 1.5); p.vy += _rand(-2, -0.3); }
+  }
+  // 像素风：旧字原地渐隐 → 格点瞬移 → 新字错峰渐显（不做散点移动）
+  if (mode === 'pixel') { _pixelRetarget(pts); return; }
+  for (let i = 0; i < pts.length; i++) {
+    if (parts[i]) {
+      const p = parts[i];
+      p.tx = pts[i].x; p.ty = pts[i].y;
+      if (mode === 'particle') {
+        // 换字在不可见点执行，只需小范围散布，淡入 200ms 内即可收拢成形
+        p.x = p.tx + _rand(-14, 14); p.y = p.ty + _rand(-14, 14);
+        p.vx = 0; p.vy = 0;
+      }
+      if (mode === 'terminal' && !p.glyph)
+        p.glyph = TERMINAL_GLYPHS[Math.floor(Math.random() * TERMINAL_GLYPHS.length)];
+      // rainbow hue 已在 _spawnParticle 里统一赋过，retarget 复用粒子不重赋
+    } else {
+      parts[i] = _spawnParticle(mode, pts[i].x, pts[i].y, true);
+    }
+  }
+  parts.length = pts.length;
+}
+
+function _spring(p, k, damp) {
+  p.vx += (p.tx - p.x) * k;
+  p.vy += (p.ty - p.y) * k;
+  p.vx *= damp; p.vy *= damp;
+  p.x += p.vx; p.y += p.vy;
+}
+
+/* 像素闪烁状态机：三态——入场扫描(bt<0) → 首次亮(bt>0 on=1) → 常规闪烁(亮/灭循环)
+   熄灭态目标 alpha=0.12（保留点阵轮廓），仅约 2% 像素同时熄灭，整屏零星跳动。 */
+function _pixelBlink(p) {
+  if (p.bt < 0) {
+    // 入场扫描：负 bt 逐帧 +1，等到 0 时切首次亮
+    p.bt++;
+    return;  // 扫描期 p.a 在 _pixelRetarget 已设为 0，alpha 插值不生效
+  }
+  if (p.bt === 0) {
+    // 扫描刚结束：开亮 → 给首次亮时长（120~300 帧）
+    p.on = 1;
+    p.bt = Math.floor(_rand(120, 300));
+    p._scanDone = true;
+  }
+  if (--p.bt <= 0) {
+    // 亮灭切换：亮→短灭(3-8帧)、灭→长亮(180-420帧)
+    p.on = p.on ? 0 : 1;
+    p.bt = p.on ? Math.floor(_rand(180, 420)) : Math.floor(_rand(3, 8));
+  }
+  p.a += ((p.on ? 1 : 0.12) - p.a) * 0.5;
+}
+
+/* 批量画圆点：整数桶计数排序 + 复用缓冲，零逐帧堆分配。
+   桶 key = 色相槽(0..20，每槽18°；21=纯色/固定配色) * 5 + alpha槽(0..4，每档0.25)。
+   两遍扫描（计数→散列）后，每桶用 _getDotSprite 预渲染贴图逐颗 drawImage；
+   半透明桶走离屏并集再整层贴回（避免重叠叠亮）。
+   旧版每帧为每个粒子 new 颜色对象、拼字符串键、new Map/Path2D（8000 粒子≈48 万对象/分钟 GC）。 */
+const _DOT_A = 5;
+const _DOT_KEYS = 22 * _DOT_A;
+const _dotCounts = new Int32Array(_DOT_KEYS);
+const _dotStart  = new Int32Array(_DOT_KEYS);
+const _dotEnd    = new Int32Array(_DOT_KEYS);
+const _dotTouched = [];
+let _dotIdxBuf = new Int32Array(0);
+/* 离屏并集层：半透明桶(a<1)不能逐颗粒子直接贴（跨粒子重叠会被 alpha 叠两次
+   变亮），先在复用离屏上以纯色贴成不透明"形状并集"，再按 globalAlpha 一次
+   贴回——与"半透明填充整条路径并集"严格等价（含形状边缘抗锯齿）。
+   不透明桶(a=1)：同色覆盖，逐颗粒子直接 drawImage 与单路径填充逐像素等价。 */
+const _dotLayer = document.createElement('canvas');
+const _dlCtx = _dotLayer.getContext('2d');
+let _dotLayerW = 0, _dotLayerH = 0;
+function _ensureDotLayer() {
+  if (_dotLayerW !== VW || _dotLayerH !== VH) {
+    const dpr = window.devicePixelRatio || 1;
+    _dotLayer.width = Math.round(VW * dpr);
+    _dotLayer.height = Math.round(VH * dpr);
+    _dlCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    _dotLayerW = VW; _dotLayerH = VH;
+  }
+}
+// pixel 模式 rainbow 专用离屏（每粒子颜色不同，不能合并 path，先画到离屏再一次贴回）
+const _pxLayer = document.createElement('canvas');
+const _pxLCtx = _pxLayer.getContext('2d');
+let _pxLW = 0, _pxLH = 0;
+function _getPxLayer() {
+  if (_pxLW !== VW || _pxLH !== VH) {
+    const dpr = window.devicePixelRatio || 1;
+    _pxLayer.width = Math.round(VW * dpr);
+    _pxLayer.height = Math.round(VH * dpr);
+    _pxLCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    _pxLW = VW; _pxLH = VH;
+  }
+  return { cv: _pxLayer, ctx: _pxLCtx };
+}
+// 每个模式当前 run 的采样 gap（retarget 时从 divN + 字号算好存这里，draw/spawn 时取）
+const _currentGap = { particle: 0, gravity: 0, terminal: 0, pixel: 0 };
+function _drawDotsBatched(mode) {
+  const n = parts.length;
+  if (!n) return;
+  if (_dotIdxBuf.length < n) _dotIdxBuf = new Int32Array(Math.max(n, _dotIdxBuf.length * 2));
+
+  // 每帧配色解析为标量（cmode 0=白 1=固定 h/s/l 2=色相随粒子）
+  const pal = PALETTES[currentPalette];
+  let cmode, cfH = 0, cfS = 0, cfL = 0, phS = 85, phL = 68;
+  if (currentPalette === 'white') cmode = 0;
+  else if (pal && pal.rainbow) { cmode = 2; phS = 90; phL = 65; }
+  else if (currentPalette === 'custom') {
+    const c = _customHslColor();
+    cmode = 1; cfH = c.h; cfS = c.s; cfL = c.l;
+  }
+  else if (pal) { cmode = 1; cfH = pal.h; cfS = pal.s; cfL = pal.l; }
+  else { cmode = 2; phS = (mode === 'gravity') ? 80 : 85; phL = 68; }
+
+  // Pass 1：计数
+  const counts = _dotCounts, touched = _dotTouched;
+  for (let i = 0; i < n; i++) {
+    const p = parts[i];
+    let hk;
+    if (cmode === 2) {
+      hk = (p.hue / 18) | 0;
+      if (hk > 20) hk = 20;
+    } else hk = 21;
+    const ak = p.alpha >= 1 ? 4 : Math.round(p.alpha * 4);
+    const key = hk * _DOT_A + ak;
+    if (counts[key] === 0) touched.push(key);
+    counts[key]++;
+  }
+  // 前缀和 → 每桶 [start,end)
+  let sum = 0;
+  for (let k = 0; k < touched.length; k++) {
+    const key = touched[k];
+    _dotStart[key] = sum;
+    sum += counts[key];
+    _dotEnd[key] = sum;
+  }
+  // Pass 2：散列（倒取计数同时把 counts 归零，下一帧无需清表）
+  for (let i = 0; i < n; i++) {
+    const p = parts[i];
+    let hk;
+    if (cmode === 2) {
+      hk = (p.hue / 18) | 0;
+      if (hk > 20) hk = 20;
+    } else hk = 21;
+    const ak = p.alpha >= 1 ? 4 : Math.round(p.alpha * 4);
+    const key = hk * _DOT_A + ak;
+    _dotIdxBuf[_dotStart[key] + --counts[key]] = i;
+  }
+  // Pass 3：每桶用预渲染形状贴图 drawImage（不再逐帧调 arc）。
+  const shape = currentShape;
+  const envA = ctx.globalAlpha;   // 外层行包络亮度；离屏贴回的整体 alpha 要再乘它
+  for (let k = 0; k < touched.length; k++) {
+    const key = touched[k];
+    const hk = (key / _DOT_A) | 0, ak = key % _DOT_A;
+    const a = ak * 0.25;
+    const s0 = _dotStart[key], s1 = _dotEnd[key];
+    if (a === 0) continue;                       // 全透明桶：画了也不可见
+    const solid = hk === 21
+      ? (cmode === 0 ? 'rgb(255,255,255)' : `hsl(${cfH},${cfS}%,${cfL}%)`)
+      : `hsl(${hk * 18},${phS}%,${phL}%)`;
+    const _q = performance.now();
+    if (a >= 1) {
+      // 不透明：同色覆盖，直接逐颗贴图（边缘 AA 由贴图自带覆盖度 × 行包络）
+      ctx.globalAlpha = envA;
+      for (let j = s0; j < s1; j++) {
+        const p = parts[_dotIdxBuf[j]];
+        const sp = _getDotSprite(shape, _dotRadiusLevel(p.size), solid);
+        ctx.drawImage(sp.cv, p.x - sp.s / 2, p.y - sp.s / 2, sp.s, sp.s);
+      }
+    } else {
+      // 半透明：离屏以纯色贴成不透明并集，再乘 (行包络 × 粒子alpha) 一次贴回
+      _ensureDotLayer();
+      _dlCtx.clearRect(0, 0, VW, VH);
+      for (let j = s0; j < s1; j++) {
+        const p = parts[_dotIdxBuf[j]];
+        const sp = _getDotSprite(shape, _dotRadiusLevel(p.size), solid);
+        _dlCtx.drawImage(sp.cv, p.x - sp.s / 2, p.y - sp.s / 2, sp.s, sp.s);
+      }
+      ctx.globalAlpha = envA * a;
+      ctx.drawImage(_dotLayer, 0, 0, VW, VH);
+      ctx.globalAlpha = envA;
+    }
+    _PF.fill += performance.now() - _q;
+  }
+  touched.length = 0;
+}
+
+/* terminal 已就位字符的辉光贴图缓存：
+   成形后数千字符每帧 fillText + shadowBlur=7 是最贵的路径，
+   改为按「字符 × 字号 × 配色 × DPR」预渲染离屏小贴图，帧内 drawImage（无模糊计算）。
+   rainbow 每字色相不同，不走贴图；飞入字（占比少）本身无 blur 也继续 fillText。
+   视觉等价：同一 2d 光栅化离屏绘制再 1:1 贴回（pad 11px ≈ blur7 的 3σ，辉光无截断）。 */
+const _glyphSpriteCache = new Map();
+let _glyphSpriteSig = '';
+function _getGlyphSprite(glyph, fsize, fill, glow) {
+  const dpr = window.devicePixelRatio || 1;
+  const sig = fsize + '|' + dpr + '|' + fill + '|' + glow;
+  if (sig !== _glyphSpriteSig) { _glyphSpriteCache.clear(); _glyphSpriteSig = sig; }
+  let sp = _glyphSpriteCache.get(glyph);
+  if (sp) return sp;
+  const pad = 11;
+  const d = fsize + pad * 2;
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(d * dpr); cv.height = Math.ceil(d * dpr);
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.font = `700 ${fsize}px monospace`;
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.shadowColor = glow; c.shadowBlur = 7;
+  c.fillStyle = fill;
+  c.fillText(glyph, d / 2, d / 2);
+  sp = { cv, d, half: d / 2 };
+  _glyphSpriteCache.set(glyph, sp);
+  return sp;
+}
+
+/* =====================================================================
+ * 直接绘制文字的模式状态（stroke / glow）
+ * ===================================================================== */
+// ---- stroke 纯描边：未唱=暗轮廓，唱到=亮描边从左跑到右，唱完=完整亮轮廓（无填充） ----
+// 每个字唱到后描边固定 0.25s 跑完（与行淡入 200ms 同量级，干脆不拖）
+const STROKE_RUN_MS = 0.25;
+let strokeWords = [];
+function strokeSet(line) {
+  strokeWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  strokeWords = words.map((w, i) => {
+    const obj = { text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start };
+    curX += widths[i];
+    return obj;
+  });
+}
+function strokeFrame(t) {
+  if (!strokeWords.length) return;
+  const fs = strokeWords[0].fontSize;
+  ctx.font = `900 ${fs}px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  let dashCol;
+  if (currentPalette === 'auto') {
+    dashCol = document.body.classList.contains('theme-neon') ? '#00f0ff' : 'rgba(255,255,255,0.9)';
+  } else if (currentPalette === 'white') {
+    dashCol = 'rgba(255,255,255,0.9)';
+  } else if (currentPalette === 'rainbow') {
+    dashCol = _paletteColor('#fff').fill;
+  } else if (currentPalette === 'custom') {
+    dashCol = currentConfig.custom_color || '#60a5fa';
+  } else {
+    dashCol = hexToRgba(PALETTES[currentPalette].glow, 0.9);
+  }
+  // 已完成字的描边辉光随环境脉动轻呼吸（跑线中/未唱保持无辉光，轮廓干净）
+  ctx.shadowColor = dashCol;
+  const doneGlow = 4 + _ambientPulse(1.7) * 4;
+  const nowMs = performance.now();
+  for (const w of strokeWords) {
+    if (t < w.s) {
+      // 未唱：极暗的完整轮廓占位
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 0;
+      ctx.setLineDash([]);
+      ctx.strokeText(w.text, w.x, w.y);
+      continue;
+    }
+    // 跑线固定 0.25s 完成，不跟随字的演唱时长（否则普通 LRC 整句一个 word，
+    // 描边要按整句几秒爬完；长音字也会显得拖沓）
+    const p = Math.min(1, Math.max(0, (t - w.s) / STROKE_RUN_MS));
+    ctx.strokeStyle = dashCol;
+    ctx.lineWidth = 2;
+    if (p < 1) {
+      // 描边沿字形从左跑到右（整段时间都给跑线，无填充阶段）
+      // edgeSoftness：Pendolo 风格柔化边缘——给跑线中的 stroke 加 3~5px shadowBlur
+      // 让边缘不是硬切而是自然渐变，edgeSoftness ≈ min(max(fontPx*0.42, 8), 16) 简化版
+      const edgeSoftness = Math.min(Math.max(fs * 0.42, 8), 16);
+      ctx.setLineDash([w.width]);
+      ctx.lineDashOffset = -w.width * (1 - p);
+      ctx.shadowBlur = edgeSoftness * 0.25;   // stroke 柔化比 fill 温和，避免轮廓糊
+      ctx.shadowColor = dashCol;
+    } else {
+      // stroke 招牌：跑线到头瞬间"通电"——0.2s 内辉光 19→4、线宽 3.5→2 快速衰减
+      if (w.doneAt == null) w.doneAt = nowMs;
+      const q = Math.max(0, 1 - (nowMs - w.doneAt) / 200);
+      ctx.setLineDash([]);
+      ctx.shadowBlur = doneGlow + q * 15;
+      ctx.lineWidth = 2 + q * 1.5;
+    }
+    ctx.strokeText(w.text, w.x, w.y);
+  }
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 1;
+  ctx.textAlign = 'center';
+}
+
+/* =====================================================================
+ * Sweep 渐变擦除（Pendolo 视觉等价）—— Canvas 2D 实现 CSS mask
+ *   未唱：暗字（alpha 0.52）
+ *   唱到：亮字从左到右被渐变 mask "擦亮"
+ *   mask：linear-gradient(90deg, #000 0%, #000 w-edgeSoftness, rgba(0,0,0,0.84) w, transparent w+edgeSoftness)
+ *   Canvas 2D 等价：临时 canvas 画亮字 → destination-in + 渐变 → 贴回主 canvas
+ *   edgeSoftness = min(max(fontPx * 0.42, 8), 16)（柔化边缘，不是硬切）
+ * ===================================================================== */
+let sweepWords = [];
+const _sweepMask = document.createElement('canvas');
+const _sweepMaskCtx = _sweepMask.getContext('2d');
+function sweepSet(line) {
+  sweepWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  const edgeSoftness = Math.min(Math.max(fontSize * 0.42, 8), 16);
+  sweepWords = words.map((w, i) => {
+    const obj = { text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start, e: w.end, edgeSoftness };
+    curX += widths[i];
+    return obj;
+  });
+}
+function sweepFrame(t) {
+  if (!sweepWords.length) return;
+  const fs = sweepWords[0].fontSize;
+  const _col = _paletteColor('#fff').fill;
+
+  // 先画所有暗字（底色 alpha 0.52）
+  ctx.font = `900 ${fs}px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const w of sweepWords) {
+    ctx.fillStyle = hexToRgba(_col, 0.52);
+    ctx.fillText(w.text, w.x, w.y);
+  }
+
+  // 再逐字画亮字 + 渐变 mask 擦除
+  const maxW = Math.round(Math.max(...sweepWords.map(w => w.width)) + 32);
+  const maxH = Math.round(fs * 1.6);
+  if (_sweepMask.width !== maxW) _sweepMask.width = maxW;
+  if (_sweepMask.height !== maxH) _sweepMask.height = maxH;
+  const mctx = _sweepMaskCtx;
+
+  for (const w of sweepWords) {
+    if (t < w.s) continue;  // 还没唱到，暗字即可
+    // 计算 fillWidth：从 0 渐变到字宽，按字的演唱时长插值
+    const dur = Math.max(0.01, w.e - w.s);
+    const p = Math.min(1, Math.max(0, (t - w.s) / dur));
+    const fillW = w.width * p;
+    if (fillW <= 0) continue;
+
+    // 临时 canvas 画亮字
+    mctx.clearRect(0, 0, maxW, maxH);
+    mctx.font = `900 ${fs}px ${FONT}`;
+    mctx.textAlign = 'left';
+    mctx.textBaseline = 'middle';
+    mctx.fillStyle = _col;
+    mctx.fillText(w.text, 16, maxH / 2);  // 左留 16px padding
+
+    // destination-in + 线性渐变 mask（柔化边缘）
+    // 关键：渐变颜色的 alpha 通道才控制 mask 强度（destination-in = 目标alpha × 源alpha）
+    const es = w.edgeSoftness;
+    const totalW = fillW + es;
+    const grad = mctx.createLinearGradient(0, 0, totalW, 0);
+    const hardEdge = Math.max((fillW - es) / totalW, 0);
+    grad.addColorStop(0, 'rgba(0,0,0,1.0)');                        // 完全保留
+    grad.addColorStop(hardEdge, 'rgba(0,0,0,1.0)');                 // 硬切前全保留
+    grad.addColorStop(fillW / totalW, 'rgba(0,0,0,0.84)');         // fillW 处柔化（半保留）
+    grad.addColorStop(1, 'rgba(0,0,0,0.0)');                        // 右端完全擦掉
+    mctx.globalCompositeOperation = 'destination-in';
+    mctx.fillStyle = grad;
+    mctx.fillRect(0, 0, totalW, maxH);
+    mctx.globalCompositeOperation = 'source-over';
+
+    // 贴回主 canvas（字的实际 x 位置 = w.x + padding）
+    ctx.drawImage(_sweepMask, w.x - 16, w.y - maxH / 2);
+  }
+  ctx.textAlign = 'center';
+}
+
+/* =====================================================================
+ * Cadenza 三态字生命周期（Folia 视觉等价）—— Canvas 2D + 指数平滑
+ *   waiting: 缩小50% + 旋转偏20° + blur=10 + alpha=0
+ *   active:  放大30% + sin钟形pulse + blur=0 + alpha=1 + 三层lighter辉光
+ *   passed:  回到基础scale + 旋转漂移 + alpha=0.82 + blur=0
+ *   插值: 1 - exp(-11*dt) transform, 1 - exp(-14*dt) visual
+ * ===================================================================== */
+let cadenzaWords = [];
+let _cadenzaLastT = 0;
+const _cadenzaGlowSprite = document.createElement('canvas');
+
+function cadenzaSet(line) {
+  cadenzaWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  cadenzaWords = words.map((w, i) => {
+    // 随机 entryOffset / passedRotate / passedDriftX/Y（模拟 Folia 的 placement 随机化）
+    const seed = Math.abs(Math.sin((w.start || 0) * 997.1 + i * 13.7));
+    const entryAngle = (seed * 2 - 1) * 35 * Math.PI / 180;
+    const entryR = 60 + seed * 40;
+    const pRot = (seed * 2 - 1) * 12;
+    const driftMag = 12 + seed * 8;
+    const obj = {
+      text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start, e: w.end,
+      entryOffsetX: Math.cos(entryAngle) * entryR,
+      entryOffsetY: Math.sin(entryAngle) * entryR,
+      passedRotate: pRot,
+      passedDriftX: Math.cos(entryAngle) * driftMag,
+      passedDriftY: Math.sin(entryAngle) * driftMag * 0.72,
+      // 动画状态（指数平滑目标）
+      _ax: 0, _ay: 0, _ascale: 0.5, _arot: pRot, _aalpha: 0, _ablur: 10, _aglow: 0,
+    };
+    curX += widths[i];
+    return obj;
+  });
+  _cadenzaLastT = performance.now();
+}
+function cadenzaFrame(t) {
+  if (!cadenzaWords.length) return;
+  const now = performance.now();
+  const dt = Math.min((now - _cadenzaLastT) / 1000, 0.05);  // 限制 dt 防跳帧
+  _cadenzaLastT = now;
+  const _col = _paletteColor('#fff').fill;
+  const fs = cadenzaWords[0].fontSize;
+
+  for (const w of cadenzaWords) {
+    // 判定 status
+    let status;
+    if (t < w.s) status = 'waiting';
+    else if (t <= w.e + 0.3) status = 'active';   // active 延长 0.3s 给 pulse 余韵
+    else status = 'passed';
+
+    // 计算 target
+    let tx = w.x, ty = w.y, tscale = 1, trot = 0, talpha = 1, tblur = 0, tglow = 0;
+    if (status === 'waiting') {
+      tscale = 0.5; trot = 20 * Math.PI / 180; talpha = 0; tblur = 10; tglow = 0;
+      tx += w.entryOffsetX; ty += w.entryOffsetY;
+    } else if (status === 'active') {
+      const prog = Math.min(1, (t - w.s) / Math.max(0.1, w.e - w.s + 0.3));
+      const pulse = 1 + Math.sin(prog * Math.PI) * 0.15;  // Folia pulse 简化版
+      tscale = 1.3 * pulse; talpha = 1; tblur = 0; tglow = 1;
+      // 微浮动
+      tx += Math.sin(now / 1000 * 1.2) * 3; ty += Math.cos(now / 1000 * 1.5) * 2;
+    } else {
+      const prog = Math.min(1, (t - w.e) / 0.6);
+      tscale = 1; talpha = 0.82; tblur = 0; tglow = 0;
+      trot = w.passedRotate * prog * Math.PI / 180;
+      tx += w.passedDriftX * prog; ty += w.passedDriftY * prog;
+    }
+
+    // 指数平滑插值
+    const et = 1 - Math.exp(-11 * dt);   // transform
+    const ev = 1 - Math.exp(-14 * dt);   // visual
+    const eg = 1 - Math.exp(-16 * dt);   // glow
+    w._ax += (tx - w._ax) * et;
+    w._ay += (ty - w._ay) * et;
+    w._ascale += (tscale - w._ascale) * et;
+    w._arot += (trot - w._arot) * et;
+    w._aalpha += (talpha - w._aalpha) * ev;
+    w._ablur += (tblur - w._ablur) * ev;
+    w._aglow += (tglow - w._aglow) * eg;
+
+    if (w._aalpha < 0.02 && w._aglow < 0.02) continue;
+
+    // 绘制
+    ctx.save();
+    ctx.translate(w._ax, w._ay);
+    ctx.rotate(w._arot);
+    ctx.scale(w._ascale, w._ascale);
+
+    // blur 效果
+    ctx.filter = w._ablur > 0.5 ? `blur(${w._ablur}px)` : 'none';
+
+    // 三层发光（lighter 混色，folia drawShadowGlowText 等价）
+    if (w._aglow > 0.02) {
+      const blurScale = Math.max(fs / 20, 0.85);
+      const innerBlur = 20 * blurScale, outerBlur = 40 * blurScale;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.shadowColor = hexToRgba(_col, Math.min(0.98, 0.76 + w._aglow * 0.1));
+      ctx.shadowBlur = innerBlur;
+      ctx.fillStyle = hexToRgba(_col, 0.11 * w._aglow);
+      ctx.font = `900 ${fs}px ${FONT}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(w.text, 0, 0);
+
+      ctx.shadowColor = hexToRgba(_col, Math.min(0.88, 0.42 + w._aglow * 0.1));
+      ctx.shadowBlur = outerBlur;
+      ctx.fillStyle = hexToRgba(_col, 0.075 * w._aglow);
+      ctx.fillText(w.text, 0, 0);
+
+      ctx.shadowColor = hexToRgba(_col, Math.min(0.42, 0.18 + w._aglow * 0.06));
+      ctx.shadowBlur = outerBlur * 1.45;
+      ctx.fillStyle = hexToRgba(_col, 0.018 * w._aglow);
+      ctx.fillText(w.text, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 主体
+    ctx.filter = 'none';
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = hexToRgba(_col, w._aalpha);
+    ctx.font = `900 ${fs}px ${FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(w.text, 0, 0);
+
+    // Folia active beam：active 字下方 78% 位置的渐变光束 + 两端光斑
+    if (w._aglow > 0.05 && w._ascale > 0.95) {
+      const bw = w.width * w._ascale;
+      const bh = Math.max(2, fs * (0.05 + 0.03) * Math.max(w._aglow, 0.12));
+      const by = fs * 0.78;
+      const bx = -bw / 2;
+      const bg = ctx.createLinearGradient(bx, by, bx + bw, by);
+      const ea = (0.16 + 0.06) * w._aglow;
+      bg.addColorStop(0, hexToRgba(_col, 0));
+      bg.addColorStop(0.2, hexToRgba(_col, ea));
+      bg.addColorStop(0.8, hexToRgba(_col, ea));
+      bg.addColorStop(1, hexToRgba(_col, 0));
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      const _rr = bh / 2;
+      ctx.moveTo(bx + _rr, by);
+      ctx.lineTo(bx + bw - _rr, by);
+      ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + _rr);
+      ctx.lineTo(bx + bw, by + bh - _rr);
+      ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - _rr, by + bh);
+      ctx.lineTo(bx + _rr, by + bh);
+      ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - _rr);
+      ctx.lineTo(bx, by + _rr);
+      ctx.quadraticCurveTo(bx, by, bx + _rr, by);
+      ctx.closePath();
+      ctx.fill();
+      // 两端光斑
+      if (w._aglow > 0.42) {
+        ctx.fillStyle = hexToRgba(_col, 0.22 * w._aglow);
+        ctx.beginPath();
+        ctx.arc(bx + 2, by + bh / 2, bh / 1.8, 0, Math.PI * 2);
+        ctx.arc(bx + bw - 2, by + bh / 2, bh / 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
+  }
+  ctx.textAlign = 'center';
+}
+
+/* =====================================================================
+ * Tilt 字级 pulse（Folia 视觉等价）—— Canvas 2D + sin 钟形脉冲
+ *   未唱：alpha 0.3, scale 0.96（暗小字占位）
+ *   唱到：alpha 1.0, scale 1.0 + 0.18*sin(π*progress)（钟形脉冲）
+ *   唱完：alpha 0.25 余辉, scale 1.0
+ *   余辉衰减：duration*1.2 后维持 0.25 底值
+ * ===================================================================== */
+let tiltWords = [];
+function tiltSet(line) {
+  tiltWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  tiltWords = words.map((w, i) => {
+    const seed = Math.abs(Math.sin((w.start || 0) * 997.1 + i * 13.7));
+    return { text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start, e: w.end,
+      _tiltDir: (seed > 0.5 ? 1 : -1) * (8 + seed * 7) * Math.PI / 180 };  // ±8~15° 倾斜方向
+  });
+}
+function tiltFrame(t) {
+  if (!tiltWords.length) return;
+  const now = performance.now();
+  const _col = _paletteColor('#fff').fill;
+  ctx.font = `900 ${tiltWords[0].fontSize}px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const w of tiltWords) {
+    let alpha, scale, tiltAngle;
+    if (t < w.s) {
+      alpha = 0.3; scale = 0.96; tiltAngle = w._tiltDir;       // 未唱：倾斜占位
+    } else if (t <= w.e) {
+      const prog = (t - w.s) / Math.max(0.01, w.e - w.s);
+      const pulse = Math.sin(prog * Math.PI);                   // 钟形脉冲：0→1→0
+      alpha = 1.0;
+      scale = 1.0 + 0.18 * pulse;                               // scale 1.0 → 1.18 → 1.0
+      tiltAngle = w._tiltDir * (1 - pulse);                     // 唱到时倾斜归零
+    } else {
+      const prog = Math.min(1, (t - w.e) / Math.max(0.2, (w.e - w.s) * 1.2));
+      alpha = 1.0 - 0.75 * prog;                                // 1.0 → 0.25 余辉
+      scale = 1.0;
+      tiltAngle = w._tiltDir * prog;                            // 唱完倾斜回归
+    }
+    ctx.save();
+    ctx.translate(w.x + w.width / 2, w.y);
+    ctx.rotate(tiltAngle);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = hexToRgba(_col, alpha);
+    ctx.fillText(w.text, -w.width / 2, 0);
+    ctx.restore();
+  }
+  ctx.textAlign = 'center';
+}
+
+/* =====================================================================
+ * Claddagh 环形歌词（Folia 视觉等价）—— Canvas 2D 椭圆投影
+ *   文字沿椭圆环按角度排列，active 字在环底部（psi=0）
+ *   Ring 投影：Rx = min(VW×0.44, 560)，Ry = Rx × 0.707（45°椭圆）
+ *   字位置：thetaCurve = deltaDist/Rx，rawX = sin(theta)×Rx×spacingFactor
+ *   深度因子 D = (cos(theta)+1)/2 → 背面字间距收紧 + 透明度降低
+ *   Active 字 angle offset 漂移：唱到时沿环做 angle 弹开回归
+ * ===================================================================== */
+let claddaghWords = [];
+function claddaghSet(line) {
+  claddaghWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs() * 0.85, 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+
+  // Folia ring 参数
+  const Rx = Math.min(VW * 0.44, 560);
+  const Ry = Rx * 0.707;   // 45° 椭圆投影比例
+  const ellipseTiltRad = -(45 * Math.PI / 180);  // 椭圆主轴对齐屏幕反对角线
+  const cosTilt = Math.cos(ellipseTiltRad);
+  const sinTilt = Math.sin(ellipseTiltRad);
+
+  // 每个字在环上的角度（沿椭圆弧等距排列）
+  let curAngle = Math.PI;  // 从椭圆左侧开始（下半环）
+  const angleStep = Math.PI * 0.9 / Math.max(words.length, 1);  // 下半环 162° 均匀分布
+
+  claddaghWords = words.map((w, i) => {
+    const thetaCurve = curAngle;  // 椭圆弧参数
+    curAngle += angleStep;
+
+    // Folia ellipse 坐标
+    const localCos = Math.cos(thetaCurve);
+    const localSin = Math.sin(thetaCurve);
+    const D = (localCos + 1) / 2;  // 深度因子 0(背)~1(前)
+    const spacingFactor = 0.35 + 0.65 * Math.pow(D, 1.2);
+
+    // 椭圆原始坐标 + 旋转变换到屏幕
+    const rawX = localSin * Rx * spacingFactor;
+    const rawY = localCos * Ry;
+    const x = rawX * cosTilt - rawY * sinTilt;
+    const y = rawX * sinTilt + rawY * cosTilt;
+
+    // 切线角度（字沿环切线方向站立）
+    const tangentX = localCos * Rx;
+    const tangentY = -localSin * Ry;
+    const tangentAngle = Math.atan2(tangentY, tangentX);
+    const rotatedTangentX = tangentX * cosTilt - tangentY * sinTilt;
+    const rotatedTangentY = tangentX * sinTilt + tangentY * cosTilt;
+    const charAngle = Math.atan2(rotatedTangentY, rotatedTangentX);
+
+    // 透明度（深度 + 距离底部焦点）
+    const distFromBottom = Math.abs(y - cy);
+    const focusFade = Math.max(0, 1 - distFromBottom / (Ry * 1.2));
+    const distanceOpacity = 0.68 + 0.32 * Math.pow(D, 1.9);
+    let baseAlpha = (0.35 + 0.65 * Math.pow(D, 1.5) * (0.35 + 0.65 * focusFade)) * distanceOpacity;
+    baseAlpha = Math.min(1, Math.max(0.15, baseAlpha));
+
+    const seed = Math.abs(Math.sin((w.start || 0) * 997.1 + i * 13.7));
+
+    return {
+      text: w.text, fontSize, width: widths[i],
+      // 环坐标
+      _x: cx + x, _y: cy + y,
+      _charAngle: charAngle,
+      _depthD: D,
+      _baseAlpha: baseAlpha,
+      // 时间
+      s: w.start, e: w.end,
+      // active 字 angle drift（唱到时弹开回归）
+      _angleOffset: 0,
+      _targetOffset: 0,
+      // 初始角度（用于弹开方向）
+      _seed: seed,
+    };
+  });
+}
+function claddaghFrame(t) {
+  if (!claddaghWords.length) return;
+  const _col = _paletteColor('#fff').fill;
+  const _now = performance.now();
+  const cx = VW / 2, cy = VH / 2;
+
+  // Folia 风格发光椭圆轨道线（字在轨道上方）
+  const Rx = Math.min(VW * 0.44, 560);
+  const Ry = Rx * 0.707;
+  const ellipseTiltRad = -(45 * Math.PI / 180);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(ellipseTiltRad);
+  ctx.strokeStyle = hexToRgba(_col, 0.12 + _ambientPulse(0) * 0.06);
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = hexToRgba(_col, 0.4);
+  ctx.shadowBlur = 12 + _ambientPulse(0) * 6;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, Rx, Ry, 0, Math.PI * 0.05, Math.PI * 0.95);  // 只画下半环（字在这）
+  ctx.stroke();
+  ctx.restore();
+
+  for (const w of claddaghWords) {
+    let active = false;
+    if (t >= w.s && t <= w.e + 0.3) active = true;
+
+    // angle drift：唱到时给一个向外的 angle offset，spring 回归
+    if (active && w._targetOffset === 0) {
+      w._targetOffset = (w._seed * 2 - 1) * 0.3;  // ±0.3 弧度弹开
+    } else if (!active && w._targetOffset !== 0) {
+      w._targetOffset *= 0.92;  // 回归
+      if (Math.abs(w._targetOffset) < 0.01) w._targetOffset = 0;
+    }
+    w._angleOffset += (w._targetOffset - w._angleOffset) * 0.12;
+
+    // active 字 scale 脉冲
+    let scale = 1;
+    let alpha = w._baseAlpha;
+    let glowAlpha = 0;
+    if (active) {
+      const prog = Math.min(1, (t - w.s) / Math.max(0.1, w.e - w.s + 0.3));
+      const pulse = 1 + Math.sin(prog * Math.PI) * 0.15;
+      scale = 1.2 * pulse;       // active 字放大多 + pulse
+      alpha = Math.min(1, w._baseAlpha * 1.6);
+      glowAlpha = 1;
+    } else if (t > w.e + 0.3) {
+      // passed：缓慢淡出
+      const prog = Math.min(1, (t - w.e - 0.3) / 0.8);
+      alpha *= (1 - prog * 0.4);  // 0.82×baseAlpha
+    }
+
+    // 最终位置 = 环上位置 + angle offset 导致的偏移
+    const dx = w._angleOffset * Math.cos(w._charAngle + Math.PI / 2) * w._depthD * 40;
+    const dy = w._angleOffset * Math.sin(w._charAngle + Math.PI / 2) * w._depthD * 40;
+
+    ctx.save();
+    ctx.translate(w._x + dx, w._y + dy);
+    ctx.rotate(w._charAngle + w._angleOffset);
+    ctx.scale(scale, scale);
+    ctx.font = `900 ${w.fontSize}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // active 字：三层 lighter 发光 + 主体
+    if (glowAlpha > 0.02) {
+      ctx.globalCompositeOperation = 'lighter';
+      const fs = w.fontSize;
+      const blurScale = Math.max(fs / 20, 0.85);
+      ctx.shadowColor = hexToRgba(_col, 0.98);
+      ctx.shadowBlur = 20 * blurScale;
+      ctx.fillStyle = hexToRgba(_col, 0.11);
+      ctx.fillText(w.text, 0, 0);
+      ctx.shadowColor = hexToRgba(_col, 0.88);
+      ctx.shadowBlur = 40 * blurScale;
+      ctx.fillStyle = hexToRgba(_col, 0.075);
+      ctx.fillText(w.text, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 主体
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = hexToRgba(_col, alpha);
+    ctx.fillText(w.text, 0, 0);
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+ * Classic 逐字入场（Folia 视觉等价）—— Canvas 2D + 指数平滑 spring
+ *   waiting: scale 0.5 → 0，entry offset 随机方向飞出，旋转偏 20°
+ *   active:  scale 1.0，alpha 1.0，轻呼吸浮动
+ *   passed:  scale 1.0 → 0.9，alpha 1.0 → 0.8，旋转漂移
+ *   插值: 1-exp(-11*dt)（无过冲趋近，Folia transformTransitionAmount 精确复刻）
+ * ===================================================================== */
+let classicWords = [];
+function classicSet(line) {
+  classicWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  classicWords = words.map((w, i) => {
+    const seed = Math.abs(Math.sin((w.start || 0) * 997.1 + i * 13.7));
+    const entryAngle = (seed * 2 - 1) * 45 * Math.PI / 180;
+    const entryR = 50 + seed * 30;
+    const obj = {
+      text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start, e: w.end,
+      // Folia Classic entry pose（waiting 态）
+      entryOffsetX: Math.cos(entryAngle) * entryR,
+      entryOffsetY: Math.sin(entryAngle) * entryR,
+      entryRotate: 20 * Math.PI / 180,
+      // Folia Classic passed drift
+      passedRotate: (seed * 2 - 1) * 8 * Math.PI / 180,
+      // 动画状态
+      _ax: 0, _ay: 0, _ascale: 0.5, _arot: 20 * Math.PI / 180, _aalpha: 0,
+    };
+    curX += widths[i];
+    return obj;
+  });
+  classicWords._lastT = performance.now();
+}
+function classicFrame(t) {
+  if (!classicWords.length) return;
+  const now = performance.now();
+  const dt = Math.min((now - (classicWords._lastT || now)) / 1000, 0.05);
+  classicWords._lastT = now;
+  const et = 1 - Math.exp(-11 * dt);
+  const ev = 1 - Math.exp(-14 * dt);
+  const _col = _paletteColor('#fff').fill;
+
+  for (const w of classicWords) {
+    let status;
+    if (t < w.s) status = 'waiting';
+    else if (t <= w.e) status = 'active';
+    else status = 'passed';
+
+    let tx = w.x, ty = w.y, tscale = 1, trot = 0, talpha = 1;
+    if (status === 'waiting') {
+      tscale = 0.5; trot = w.entryRotate; talpha = 0;
+      tx += w.entryOffsetX; ty += w.entryOffsetY;
+    } else if (status === 'active') {
+      tscale = 1; talpha = 1; trot = 0;
+      tx += Math.sin(now / 1000 * 1.2 + w.s * 2) * 2;   // 微呼吸浮动
+      ty += Math.cos(now / 1000 * 1.5 + w.s * 2) * 1.5;
+    } else {
+      const prog = Math.min(1, (t - w.e) / 0.5);
+      tscale = 1 - 0.1 * prog;    // 1.0 → 0.9
+      talpha = 1 - 0.2 * prog;    // 1.0 → 0.8
+      trot = w.passedRotate * prog;
+    }
+
+    w._ax += (tx - w._ax) * et;
+    w._ay += (ty - w._ay) * et;
+    w._ascale += (tscale - w._ascale) * et;
+    w._arot += (trot - w._arot) * et;
+    w._aalpha += (talpha - w._aalpha) * ev;
+
+    if (w._aalpha < 0.02) continue;
+
+    ctx.save();
+    ctx.translate(w._ax, w._ay);
+    ctx.rotate(w._arot);
+    ctx.scale(w._ascale, w._ascale);
+    ctx.fillStyle = hexToRgba(_col, w._aalpha);
+    ctx.font = `900 ${w.fontSize}px ${FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(w.text, 0, 0);
+    ctx.restore();
+  }
+  ctx.textAlign = 'center';
+}
+
+/* =====================================================================
+ * Monet 字态衰减（Folia resolveMonetTone 视觉等价）—— Canvas 2D
+ *   核心逻辑：按距离 active 字的远近来衰减 scale
+ *   active 字（d=0）: scale=1.0
+ *   waiting 字（距离 d 个 word 远）: scale=0.72 × 0.9^d
+ *   passed 字（距离 d 个 word 远）: scale=0.52 × 0.9^d
+ *   与 Cadenza/Classic 不同：没有固定的 waiting/active/passed 三态边界，
+ *   而是连续的距离衰减——active 字附近的 waiting 字也会放大一点，
+ *   远处的 passed 字缩得更小
+ * ===================================================================== */
+let monetWords = [];
+function monetSet(line) {
+  monetWords = [];
+  if (!line) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fontSize = _fitSingleLineFont(ctx, line.text, _lyricBaseFs(), 900);
+  const words = line.words && line.words.length ? line.words : [{text: line.text, start: line.start, end: line.end}];
+  const widths = words.map(w => ctx.measureText(w.text).width);
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  let curX = cx - totalW / 2;
+  monetWords = words.map((w, i) => {
+    const obj = {
+      text: w.text, x: curX, y: cy, width: widths[i], fontSize, s: w.start, e: w.end,
+      i,  // 索引
+      _ascale: 0.52, _aalpha: 0.8,
+    };
+    curX += widths[i];
+    return obj;
+  });
+  monetWords._lastT = performance.now();
+}
+function monetFrame(t) {
+  if (!monetWords.length) return;
+  const now = performance.now();
+  const dt = Math.min((now - (monetWords._lastT || now)) / 1000, 0.05);
+  monetWords._lastT = now;
+  const et = 1 - Math.exp(-11 * dt);
+  const ev = 1 - Math.exp(-14 * dt);
+  const _col = _paletteColor('#fff').fill;
+
+  // 找当前 active 字的索引
+  let activeIdx = -1;
+  for (let i = 0; i < monetWords.length; i++) {
+    if (t >= monetWords[i].s && t <= monetWords[i].e) { activeIdx = i; break; }
+  }
+
+  for (const w of monetWords) {
+    let targetScale, targetAlpha;
+    if (activeIdx >= 0) {
+      const d = Math.abs(w.i - activeIdx);
+      const decay = Math.pow(0.9, d);   // 距离衰减
+      if (w.i === activeIdx) {
+        // active 字
+        targetScale = 1.0;
+        targetAlpha = 1.0;
+      } else if (t < w.s) {
+        // waiting 字
+        targetScale = 0.72 * decay;
+        targetAlpha = 0.5 + 0.3 * decay;
+      } else {
+        // passed 字
+        targetScale = 0.52 * decay;
+        targetAlpha = 0.6 + 0.2 * decay;
+      }
+    } else {
+      // 没有 active 字（前奏/尾奏）：所有字都在 waiting/passed 边界，按时间衰减
+      if (t < w.s) {
+        targetScale = 0.72; targetAlpha = 0.4;
+      } else {
+        const prog = Math.min(1, (t - w.e) / 0.5);
+        targetScale = 0.52 * (1 - 0.2 * prog);
+        targetAlpha = 0.8 * (1 - 0.3 * prog);
+      }
+    }
+
+    w._ascale += (targetScale - w._ascale) * et;
+    w._aalpha += (targetAlpha - w._aalpha) * ev;
+
+    if (w._aalpha < 0.02) continue;
+
+    ctx.save();
+    ctx.translate(w.x + w.width / 2, w.y);
+    ctx.scale(w._ascale, w._ascale);
+    ctx.fillStyle = hexToRgba(_col, w._aalpha);
+    ctx.font = `900 ${w.fontSize}px ${FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(w.text, -w.width / 2, 0);
+    ctx.restore();
+  }
+  ctx.textAlign = 'center';
+}
+
+let glowLine = '';
+/* 环境脉动：返回 0..1 的慢正弦，周期 ~3.2s，给静帧文字类效果一点"呼吸感"。
+   各调用点用不同 phase 错开，避免所有效果同频；幅度一律压到不影响辨认。 */
+function _ambientPulse(phase) {
+  return 0.5 + 0.5 * Math.sin(performance.now() / 1000 * (Math.PI * 2 / 3.2) + phase);
+}
+function glowFrame() {
+  if (!glowLine) return;
+  const cx = VW / 2, cy = VH / 2;
+  const fs = _fitFontCached(glowLine, _lyricBaseFs(), 900);
+  const _col = _paletteColor('#fff', '#00f0ff').glow;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // 三层 lighter 发光（Cadenza drawShadowGlowText 等价）
+  const glowStrength = 0.6 + _ambientPulse(0) * 0.4;  // 0.6~1.0 呼吸
+  const blurScale = Math.max(fs / 20, 0.85);
+  ctx.globalCompositeOperation = 'lighter';
+
+  // 内层 glow（20px blur）
+  ctx.shadowColor = hexToRgba(_col, Math.min(0.98, 0.76 + glowStrength * 0.1));
+  ctx.shadowBlur = 20 * blurScale;
+  ctx.fillStyle = hexToRgba(_col, 0.11 * glowStrength);
+  ctx.font = `900 ${fs}px ${FONT}`;
+  ctx.fillText(glowLine, cx, cy);
+
+  // 中层 glow（40px blur）
+  ctx.shadowColor = hexToRgba(_col, Math.min(0.88, 0.42 + glowStrength * 0.1));
+  ctx.shadowBlur = 40 * blurScale;
+  ctx.fillStyle = hexToRgba(_col, 0.075 * glowStrength);
+  ctx.fillText(glowLine, cx, cy);
+
+  // 外层 air layer（40×1.45px blur）
+  ctx.shadowColor = hexToRgba(_col, Math.min(0.42, 0.18 + glowStrength * 0.06));
+  ctx.shadowBlur = 40 * blurScale * 1.45;
+  ctx.fillStyle = hexToRgba(_col, 0.018 * glowStrength);
+  ctx.fillText(glowLine, cx, cy);
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.shadowBlur = 0;
+
+  // 纯白主体（放在 lighter 之后，用 source-over 盖在最上层保证清晰度）
+  ctx.fillStyle = _paletteColor('#fff').fill;
+  ctx.font = `900 ${fs}px ${FONT}`;
+  ctx.fillText(glowLine, cx, cy);
+}
+
+/* =====================================================================
+ * 粒子模式每帧更新 + 绘制
+ * ===================================================================== */
+let crtJitter = 0;
+/* 性能探针（F8 开关，默认关闭零读数开销）：物理/光栅化分段累计，每 30 帧刷一次。
+   仅 performance.now 打点常驻（纳秒级），文字拼接只在开启时发生。 */
+const _perfEl = document.createElement('div');
+_perfEl.id = 'perf';
+document.body.appendChild(_perfEl);
+const _PF = { phys: 0, draw: 0, path: 0, fill: 0 };
+let _pfOn = false, _pfN = 0, _pfPhys = 0, _pfDraw = 0, _pfPath = 0, _pfFill = 0, _pfFrame = 0, _pfFrameMax = 0, _pfPrev = performance.now();
+addEventListener('keydown', e => {
+  if (e.key === 'F8') {
+    e.preventDefault();
+    _pfOn = !_pfOn;
+    _perfEl.classList.toggle('on', _pfOn);
+    _pfN = 0; _pfPhys = _pfDraw = _pfPath = _pfFill = _pfFrame = _pfFrameMax = 0; _pfPrev = performance.now();
+  }
+});
+/* 每帧采样：关闭时仅清零分段累计（避免堆积）；开启时每 30 帧算一次均值/峰值 */
+function _pfSample(frameMs) {
+  if (!_pfOn) { _PF.phys = _PF.draw = _PF.path = _PF.fill = 0; return; }
+  _pfN++;
+  _pfPhys += _PF.phys; _pfDraw += _PF.draw; _pfPath += _PF.path; _pfFill += _PF.fill;
+  _pfFrame += frameMs; if (frameMs > _pfFrameMax) _pfFrameMax = frameMs;
+  _PF.phys = _PF.draw = _PF.path = _PF.fill = 0;
+  if (_pfN >= 30) {
+    const now = performance.now();
+    const fps = 1000 / ((now - _pfPrev) / _pfN);
+    _perfEl.textContent =
+      'FPS ' + fps.toFixed(0) + '   frame ' + (_pfFrame / _pfN).toFixed(2) + 'ms   max ' + _pfFrameMax.toFixed(1) + 'ms\n'
+      + 'phys ' + (_pfPhys / _pfN).toFixed(2) + 'ms   draw ' + (_pfDraw / _pfN).toFixed(2) + 'ms\n'
+      + 'path(arc) ' + (_pfPath / _pfN).toFixed(2) + 'ms   fill ' + (_pfFill / _pfN).toFixed(2) + 'ms\n'
+      + currentMode + '  ' + currentPalette
+      + (currentPalette === 'custom' ? (' ' + currentConfig.custom_color) : '')
+      + '   n=' + parts.length + '\n'
+      + VW + 'x' + VH + '  dpr=' + (window.devicePixelRatio || 1);
+    _pfN = 0; _pfPhys = _pfDraw = _pfPath = _pfFill = _pfFrame = _pfFrameMax = 0; _pfPrev = now;
+  }
+}
+function particleModeFrame(mode, t, sim, idle) {
+  const _pmT0 = performance.now();
+  // sim=false（暂停/未播放）：冻结一切随时间的运动——spring、爆炸、字符跳变、
+  // 漩涡旋转、终端抖动都停在当前帧；但仍绘制当前粒子（保留静止字形）。
+  if (sim) switch (mode) {
+    case 'particle': {
+      // particle 招牌：播放中已聚成字形的粒子沿各自错相圆轨极轻漂浮（0.6px），
+      // 像有生命的星尘；未播放占位态仍用随机电子噪动（两种静态性格不同）。
+      // 优化：near=true 的成形粒子在播放态下 spring 结果被三角函数覆盖（空算），跳过。
+      const wsec = performance.now() / 1000;
+      for (const p of parts) {
+        const near = Math.abs(p.tx - p.x) < 4 && Math.abs(p.ty - p.y) < 4;
+        if (idle && near) {
+          // 占位态：已就位粒子注入极小幅随机速度，spring 立即拉回，1px 内电子噪动
+          p.vx += _rand(-0.04, 0.04);
+          p.vy += _rand(-0.04, 0.04);
+          _spring(p, SPRING_K, SPRING_DAMP);
+        } else if (!idle && near) {
+          if (p.ph === undefined) p.ph = Math.random() * Math.PI * 2;
+          // 横纵频率不同 → 不成规则圆；幅度 0.6px 不破坏字形辨认
+          p.x = p.tx + Math.cos(wsec * 0.9 + p.ph) * 0.6;
+          p.y = p.ty + Math.sin(wsec * 0.7 + p.ph * 1.3) * 0.6;
+          // 成形粒子跳过 spring（三角函数直接写 x/y，spring 结果不被用）
+          continue;
+        } else {
+          // 未成形粒子（入场中）：spring 驱动向 tx,ty 收拢
+          _spring(p, SPRING_K, SPRING_DAMP);
+        }
+      }
+      break;
+    }
+    case 'pixel':
+      // 像素风：格点固定（_pixelRetarget 已钉死 x=y=tx=ty，成形粒子 spring 全零），
+      // 只对入场扫描后的成形粒子跑闪烁；未成形（理论上 _pixelRetarget 同时钉死全部）
+      // 也无需 spring——跳过 spring 省掉每帧 6000 次空算。
+      for (const p of parts) { _pixelBlink(p); }
+      break;
+    case 'gravity':
+      for (const p of parts) {
+        if (p.burst && --p.bt > 0) {
+          // 自由飞行（≤20 帧）：小重力 + 弱 spring，让短抛物线可见
+          p.vy += 0.18;              // 重力
+          p.vx *= 0.985;             // 水平空气阻力
+          const dx = p.tx - p.x, dy = p.ty - p.y;
+          p.vx += dx * SPRING_K * 0.55;
+          p.vy += dy * SPRING_K * 0.55;
+          p.vy *= 0.80;
+          p.x += p.vx; p.y += p.vy;
+          // 落地最多反弹 1 次
+          if (p.y > VH - 8 && p.bounce < 1 && p.vy > 0.4) {
+            p.y = VH - 8;
+            p.vy *= -0.4; p.vx *= 0.70; p.bounce++;
+          }
+          // 反弹后上升动能收敛 → 提前结束飞行
+          if (p.bounce > 0 && p.vy > -0.4) p.burst = 0;
+        } else {
+          // gravity 招牌：成形后**完全钉死**（不再颤巍，僵住）——
+          // 1px 容差内直接跳过 spring，粒子落地即凝固，
+          // 与 particle 的"星尘漂浮活态"形成强对比
+          if (Math.abs(p.tx - p.x) < 1 && Math.abs(p.ty - p.y) < 1) {
+            p.x = p.tx; p.y = p.ty;
+            p.vx = 0; p.vy = 0;
+          } else {
+            _spring(p, SPRING_K, SPRING_DAMP);
+          }
+        }
+      }
+      break;
+    case 'terminal':
+      // = 原 matrix 字符随机跳变 + 原 CRT 整行微抖
+      crtJitter = _rand(-1, 1);
+      // 优化：成形粒子跳过 spring（x≈tx，vx≈0，spring 算完被 CRT jitter 0.15px 覆盖）
+      for (const p of parts) {
+        const dx = p.tx - p.x, dy = p.ty - p.y;
+        if (dx * dx + dy * dy < 64) {
+          // 已成形：直接贴 CRT jitter + 字符随机跳变，跳过 spring
+          p.x += crtJitter * 0.15;
+          p.glyphTimer++;
+          if (p.glyphTimer > 18 + Math.random() * 26) {
+            p.glyph = TERMINAL_GLYPHS[Math.floor(Math.random() * TERMINAL_GLYPHS.length)];
+            p.glyphTimer = 0;
+          }
+        } else {
+          _spring(p, SPRING_K, SPRING_DAMP);
+          p.x += crtJitter * 0.15;
+        }
+      }
+      break;
+  }
+
+  // ---- 主体 ----
+  _PF.phys += performance.now() - _pmT0;
+  const _pmT1 = performance.now();
+  ctx.shadowBlur = 0;
+  // 粒子太暗/太稀看不清 → 已在 _spawnParticle 加大到 1.8-2.8px + alpha 0.88-1，
+  // 成形后又有辉光粒子的 glow sprite / stroke 通电脉冲的阴影，
+  // 粒子类用 drawImage 贴图，shadowBlur 对 drawImage 无效——不加白加。
+  if (mode === 'terminal') {
+    const fsize = _glyphFs();
+    ctx.font = `700 ${fsize}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // 终端配色（auto=经典荧光绿）
+    let settleFill = '#57ff8a', settleGlow = '#00ff40', flyFill = 'rgba(0,210,70,0.55)';
+    if (currentPalette === 'white') {
+      settleFill = '#ffffff'; settleGlow = '#ffffff'; flyFill = 'rgba(255,255,255,0.5)';
+    } else if (currentPalette === 'rainbow') {
+      settleFill = settleGlow = flyFill = '__rainbow__';
+    } else if (currentPalette === 'custom') {
+      const hex = currentConfig.custom_color || '#60a5fa';
+      settleFill = hex; settleGlow = hex; flyFill = hexToRgba(hex, 0.5);
+    } else if (currentPalette !== 'auto') {
+      const pal = PALETTES[currentPalette];
+      settleFill = pal.hex; settleGlow = pal.glow;
+      flyFill = hexToRgba(pal.hex, 0.5);
+    }
+    const useSprites = settleFill !== '__rainbow__';
+    for (const p of parts) {
+      const ddx = p.x - p.tx, ddy = p.y - p.ty;
+      const settled = ddx * ddx + ddy * ddy < 64;   // 距离 <8：平方比较替代 hypot（8000次/帧）
+      if (settled && useSprites) {
+        // terminal 招牌：就位字符偶发"信号干扰"——每帧 0.012% 概率暗灭 4~6 帧
+        // （8000 粒子下同屏约 3~4 颗在闪），像老终端丢字符，不影响整句辨认
+        if (p.flash > 0) p.flash--;
+        else if (Math.random() < 0.00012) p.flash = 4 + (Math.random() * 3 | 0);
+        // 已就位：预渲染辉光贴图 1:1 贴上（省去每帧字形光栅化 + shadowBlur）
+        const sp = _getGlyphSprite(p.glyph, fsize, settleFill, settleGlow);
+        if (p.flash > 0) {
+          const ga = ctx.globalAlpha;   // 保留行包络亮度，只在其上乘暗
+          ctx.globalAlpha = ga * 0.18;
+          ctx.drawImage(sp.cv, p.x - sp.half, p.y - sp.half, sp.d, sp.d);
+          ctx.globalAlpha = ga;
+        } else {
+          ctx.drawImage(sp.cv, p.x - sp.half, p.y - sp.half, sp.d, sp.d);
+        }
+      } else if (settled) {
+        // rainbow：每字色相不同，只能实时绘制
+        ctx.fillStyle = `hsl(${p.hue},90%,64%)`;
+        ctx.shadowColor = `hsl(${p.hue},100%,58%)`; ctx.shadowBlur = 7;
+        ctx.fillText(p.glyph, p.x, p.y);
+      } else {
+        // 飞入中：无辉光
+        ctx.fillStyle = useSprites ? flyFill : `hsla(${p.hue},90%,55%,0.55)`;
+        ctx.shadowBlur = 0;
+        ctx.fillText(p.glyph, p.x, p.y);
+      }
+    }
+    ctx.shadowBlur = 0;
+  } else if (mode === 'pixel') {
+    drawPixel();
+  } else {
+    _drawDotsBatched(mode);
+  }
+  _PF.draw += performance.now() - _pmT1;
+}
+
+/* 像素风主体：硬边方块（边长 gap×sizeMul，缝隙 = gap×(1-sizeMul)），无辉光。
+   非 rainbow 配色：alpha 分 64 级桶（误差 ≤1.6%，硬边栅格方块无可辨色带），
+   同级方块合并一条路径一次 fill——消除 6000 次/帧的 hsla 字符串拼接与 fillStyle 切换；
+   方块位置在采样点阵上互不重叠，分组合成结果与逐个 fillRect 完全一致。
+   rainbow 逐像素色相不同，保留逐个绘制。 */
+const _PX_LEVELS = 64;
+const _pxBuckets = Array.from({ length: _PX_LEVELS }, () => []);
+let _pxStyleSig = '', _pxStyleTbl = new Array(_PX_LEVELS);
+function drawPixel() {
+  const _g = _currentGap.pixel || 3;   // retarget 时算好，兜底 3
+  const px = _g * PARTICLE_MODES.pixel.sizeMul;
+  const half = px / 2;
+  ctx.shadowBlur = 0;
+  const pal = PALETTES[currentPalette];
+  const rainbow = !!(pal && pal.rainbow);
+  // rainbow：每粒子颜色不同，9000 次 fillStyle 切换 + fillRect → 走离屏并集
+  if (rainbow) {
+    const _pxL = _getPxLayer();
+    _pxL.ctx.clearRect(0, 0, VW, VH);
+    for (const p of parts) {
+      if (p.a < 0.03) continue;
+      _pxL.ctx.fillStyle = `hsla(${p.hue},90%,65%,${p.a})`;
+      _pxL.ctx.fillRect(p.x - half, p.y - half, px, px);
+    }
+    ctx.drawImage(_pxL.cv, 0, 0);
+    return;
+  }
+  // 配色签名 → 64 级 fillStyle 表（签名不变时整表复用，零拼接）
+  const useWhite = currentPalette === 'white' || (!pal && currentPalette !== 'custom');   // pixel 的 auto = 纯白
+  let prefix, sig;
+  if (useWhite) {
+    prefix = 'rgba(255,255,255,'; sig = 'w';
+  } else if (currentPalette === 'custom') {
+    const c = _customHslColor();
+    prefix = `hsla(${c.h},${c.s}%,${c.l}%,`;
+    sig = 'c' + (currentConfig.custom_color || '');
+  } else {
+    prefix = `hsla(${pal.h},${pal.s}%,${pal.l}%,`; sig = currentPalette;
+  }
+  if (sig !== _pxStyleSig) {
+    _pxStyleSig = sig;
+    for (let k = 0; k < _PX_LEVELS; k++) {
+      const a = k === _PX_LEVELS - 1 ? 1 : +((k + 0.5) / _PX_LEVELS).toFixed(4);
+      _pxStyleTbl[k] = prefix + a + ')';
+    }
+  }
+  for (let k = 0; k < _PX_LEVELS; k++) _pxBuckets[k].length = 0;
+  for (const p of parts) {
+    if (p.a < 0.03) continue;
+    let k = (p.a * _PX_LEVELS) | 0;
+    if (k >= _PX_LEVELS) k = _PX_LEVELS - 1;
+    _pxBuckets[k].push(p);
+  }
+  for (let k = 0; k < _PX_LEVELS; k++) {
+    const b = _pxBuckets[k];
+    if (!b.length) continue;
+    ctx.beginPath();
+    for (let i = 0; i < b.length; i++) {
+      const p = b[i];
+      ctx.rect(p.x - half, p.y - half, px, px);
+    }
+    ctx.fillStyle = _pxStyleTbl[k];
+    ctx.fill();
+  }
+}
+
+/* =====================================================================
+ * 模式状态重置 / Canvas 行设置（提前 0.2s）
+ * ===================================================================== */
+function resetModeState() {
+  parts.length = 0;
+  _lineEnv = null;
+  strokeWords = [];
+  glowLine = '';
+  sweepWords = [];
+  cadenzaWords = [];
+  tiltWords = [];
+  claddaghWords = [];
+}
+
+/* =====================================================================
+ * 统一行切换包络（所有 canvas 模式共用）：
+ *   旧句 90ms 加速淡出（二次曲线，前段快速离开=干脆）→ 不可见点换字
+ *   → 新句 180ms ease-out 淡入（三次曲线，先快后稳=自然落位）。
+ * setCanvasLine 提前 PRE_TRIGGER(0.2s) 触发：歌词正点时亮度已 94%，
+ * 正点后 70ms 全亮——切句明显比旧线性版利落，且无硬切感。
+ * ===================================================================== */
+const ENV_OUT_MS = 90, ENV_IN_MS = 180;
+let _lineEnv = null;  // { start, idx, text, swapped }
+
+function _applyLineContent(idx, text) {
+  switch (currentMode) {
+    case 'particle':
+    case 'gravity':
+    case 'terminal':
+    case 'pixel':
+      retarget(currentMode, text);
+      break;
+    case 'stroke':
+      strokeSet(idx >= 0 ? lines[idx] : null);
+      break;
+    case 'glow':
+      glowLine = text;
+      break;
+    case 'sweep':
+      sweepSet(idx >= 0 ? lines[idx] : null);
+      break;
+    case 'cadenza':
+      cadenzaSet(idx >= 0 ? lines[idx] : null);
+      break;
+    case 'tilt':
+      tiltSet(idx >= 0 ? lines[idx] : null);
+      break;
+    case 'claddagh':
+      claddaghSet(idx >= 0 ? lines[idx] : null);
+      break;
+  }
+}
+
+function _lineEnvTick(now) {
+  if (!_lineEnv) return 1;
+  const outMs = _lineEnv.outMs, inMs = _lineEnv.inMs;
+  const e = now - _lineEnv.start;
+  if (e < outMs) {
+    const p = e / outMs;
+    return (1 - p) * (1 - p);   // 淡出：ease-in 离场（快速消失，尾段柔和）
+  }
+  if (!_lineEnv.swapped) {
+    _applyLineContent(_lineEnv.idx, _lineEnv.text);
+    _lineEnv.swapped = true;
+  }
+  if (e < outMs + inMs) {
+    const p = (e - outMs) / inMs;
+    return 1 - Math.pow(1 - p, 3);   // 淡入：easeOutCubic（先快后稳，自然落位）
+  }
+  _lineEnv = null;
+  return 1;
+}
+
+/* 本行停留时长 dwell = 下一行 start - 本行 start（末行/占位 = ∞ 走标准时长）。
+   前奏的歌手/作词/制作信息行常常只有 0.3~0.6s，固定 270ms 包络会让这些行
+   还没淡入完就被下一行打断（一直半透明、像在闪）。包络总长按 dwell 的 60% 取，
+   夹在 70~270ms——短行快速切但仍保留至少 40% 时间全亮可读；淡出占 1/3。 */
+function _envDurations(idx) {
+  // dwell 无穷（末行/占位）直接走标准时长，避免 Infinity*600 → max/min 无谓计算
+  let total = ENV_OUT_MS + ENV_IN_MS;
+  if (idx >= 0 && idx + 1 < lines.length) {
+    const dwell = lines[idx + 1].start - lines[idx].start;
+    if (dwell < total) total = Math.max(70, Math.round(dwell * 600));
+  }
+  const outMs = Math.round(total / 3);
+  return { outMs, inMs: total - outMs };
+}
+
+function setCanvasLine(idx, force) {
+  if (!force && idx === canvasIdx) return;
+  canvasIdx = idx;
+  const text = (idx >= 0 && lines[idx]) ? lines[idx].text : (currentConfig.placeholder_text || '');
+  // 画面为空（开窗首句/切模式后首句）：直接上字，不演淡出
+  const hasContent = currentMode === 'stroke' ? strokeWords.length > 0
+                   : currentMode === 'glow' ? !!glowLine
+                   : currentMode === 'sweep' ? sweepWords.length > 0
+                   : currentMode === 'cadenza' ? cadenzaWords.length > 0
+                   : currentMode === 'tilt' ? tiltWords.length > 0
+                   : currentMode === 'claddagh' ? claddaghWords.length > 0
+                   : parts.length > 0;
+  if (!hasContent) { _lineEnv = null; _applyLineContent(idx, text); return; }
+  // 过渡中又切行（拖进度/密句）：以最新句重开包络；短停留行用压缩时长
+  const d = _envDurations(idx);
+  _lineEnv = {
+    start: performance.now(), idx, text, swapped: false,
+    outMs: d.outMs, inMs: d.inMs,
+  };
+}
+
+/* =====================================================================
+ * 主循环 —— 60fps RAF
+ *   真实时间 t       → DOM 行切换
+ *   提前 0.2s 的 t2  → canvas 粒子 retarget（歌词出来时粒子已就位）
+ * ===================================================================== */
+const PRE_TRIGGER = 0.2;
+function findLineAt(time) {
+  let lo = 0, hi = lines.length - 1, ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (time >= lines[mid].start) { ans = mid; lo = mid + 1; }
+    else hi = mid - 1;
+  }
+  return ans;
+}
+
+function tick() {
+  const playing = !audioEl.paused && lines.length;
+  const t = audioEl.currentTime;
+  if (playing) {
+    const realIdx = findLineAt(t);
+    if (realIdx !== domIdx) updateDomLine(realIdx);
+    const earlyIdx = findLineAt(t + PRE_TRIGGER);
+    if (earlyIdx !== canvasIdx) setCanvasLine(earlyIdx);
+    // DOM word/aria 模式：逐字 timing 高亮（给 aria 加 glitch，给 word 加 active glow）
+    if (FX_MODES.indexOf(currentMode) < 0) _domWordTick(t);
+  } else {
+    // 播放→未播放的边沿：粒子目标从最后一句歌词重设为占位句（retarget 一次即可）
+    if (tick._wasPlaying && canvasIdx !== -1) setCanvasLine(-1, true);
+    if (domIdx !== -1) {
+      // DOM 层始终回到占位句
+      domIdx = -2;
+      updateDomLine(-1);
+    }
+  }
+  tick._wasPlaying = playing;
+
+  // 渲染
+  const _rf0 = performance.now();
+  if (FX_MODES.indexOf(currentMode) >= 0) {
+    ctx.clearRect(0, 0, VW, VH);
+    // 统一行切换包络：本帧整体亮度；到不可见点时在此完成换字（先于物理/绘制）
+    ctx.globalAlpha = _lineEnvTick(performance.now());
+    const idle = !playing;
+    switch (currentMode) {
+      case 'particle':
+      case 'gravity':
+      case 'terminal':
+      case 'pixel':
+        particleModeFrame(currentMode, playing ? t : 0, true, idle);
+        break;
+      case 'stroke':  playing ? strokeFrame(t) : drawPlaceholder(); break;
+      case 'glow':    playing ? glowFrame() : drawPlaceholder(); break;
+      case 'sweep':   playing ? sweepFrame(t) : drawPlaceholder(); break;
+      case 'cadenza': playing ? cadenzaFrame(t) : drawPlaceholder(); break;
+      case 'tilt':    playing ? tiltFrame(t) : drawPlaceholder(); break;
+      case 'claddagh':playing ? claddaghFrame(t) : drawPlaceholder(); break;
+    }
+    ctx.globalAlpha = 1;
+  }
+  const _rfMs = performance.now() - _rf0;
+  _lastFrameTs = performance.now();
+  _pfSample(_rfMs);
+  _scheduleRaf();
+}
+
+/* rAF 单飞调度 + 定时器心跳兜底：
+   伪最小化时窗口探到屏幕外（仅几像素露边），Chromium 可能暂停 rAF——
+   纯 rAF 驱动会让歌词/粒子彻底冻结。独立 setInterval（配合
+   --disable-background-timer-throttling）在 rAF 停摆超过 120ms 时直接驱动 tick，
+   窗口回屏后 rAF 恢复，心跳发现帧新鲜便自动让出，不重复绘制。 */
+let _lastFrameTs = 0;
+let _rafPending = false;
+function _scheduleRaf() {
+  if (_rafPending) return;
+  _rafPending = true;
+  requestAnimationFrame(function () { _rafPending = false; tick(); });
+}
+setInterval(function () {
+  if (performance.now() - _lastFrameTs > 120) tick();
+}, 80);
+/* 启动引导：currentConfig 由 Python 在 setHtml 时注入（效果/配色/密度/形状/占位文字），
+ * tick 开跑前先应用，保证窗口第一帧就是配置里的风格，而不是硬编码默认值再异步跳变 */
+(function applyBootConfig() {
+  currentConfig.mode = applyMode(MODE_ALIAS[currentConfig.mode] || currentConfig.mode);
+  applyPalette(currentConfig.color || 'auto');
+  currentDensity = DENSITY_TABLE[currentConfig.particle_density]
+    ? currentConfig.particle_density : 'ultra';
+  currentShape = currentConfig.particle_shape || 'circle';
+  _applyParticleConfig();
+  // DOM 模式 tick 不播放时不更新行，首帧占位也要用配置值（domIdx 初值为 -1，需先破守卫）
+  domIdx = -2;
+  updateDomLine(-1);
+})();
+
+_scheduleRaf();
+
+/* =====================================================================
+ * SSE + 播放入口
+ * ===================================================================== */
+const evt = new EventSource('/api/events' + (ROOM_ID && PLUGIN_NAME ? '?plugin=' + PLUGIN_NAME + '&room_id=' + ROOM_ID : ''));
+evt.onmessage = (e) => {
+  try {
+    const msg = JSON.parse(e.data);
+    if (!msg) return;
+    if (msg.cmd === 'netease_play') loadSong(msg.data);
+    if (msg.cmd === 'config_changed') refreshConfig();
+  } catch (err) {}
+};
+
+function loadSong(data) {
+  lines = parseLRC(data.lrc || '');
+  domIdx = -2; canvasIdx = -2;   // 强制下帧重绘占位
+  updateDomLine(-1);
+  resetModeState();
+  setCanvasLine(-1, true);
+
+  audioEl.pause(); audioEl.src = data.url;
+  audioEl.play().then(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: data.name || '未知', artist: data.artist || '',
+      });
+      navigator.mediaSession.playbackState = 'playing';
+      navigator.mediaSession.setActionHandler('play', () => audioEl.play());
+      navigator.mediaSession.setActionHandler('pause', () => audioEl.pause());
+      navigator.mediaSession.setActionHandler('seekto',
+        (e) => { if (e.fastSeek) audioEl.fastSeek(e.seekTime); else audioEl.currentTime = e.seekTime; });
+    }
+  }).catch(() => {
+    // Chromium 自动播放策略兜底
+    audioEl.muted = true;
+    audioEl.play().then(() => { audioEl.muted = false; }).catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

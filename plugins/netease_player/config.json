@@ -1,0 +1,17 @@
+{
+    "name": "网易云点歌姬",
+    "mode": "manual",
+    "_comment": "网易云点歌姬 —— 弹幕指令 + Node API 解灰 + 悬浮窗歌词显示",
+    "cmd_keywords": [
+        "点歌"
+    ],
+    "enable_reply": true,
+    "placeholder_text": "♪ 等待点歌 ♪",
+    "mode_display": "cadenza",
+    "color": "purple",
+    "custom_color": "#7686fe",
+    "particle_density": "extreme",
+    "particle_shape": "square",
+    "particle_size": 0.75,
+    "version": "0.0.1"
+}
