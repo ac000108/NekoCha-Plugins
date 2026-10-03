@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790874999,
+  "updated_at": 1790997110,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -308,44 +308,6 @@
           "path": "display.html",
           "sha256": "e209de16a626c27e61fb395783e98116dbf263a46a454eaed92d6fbe78ffc181",
           "size": 23166
-        }
-      ]
-    },
-    {
-      "name": "netease_player",
-      "display_name": "网易云点歌姬",
-      "version": "0.0.6",
-      "description": "",
-      "files": [
-        {
-          "path": "__init__.py",
-          "sha256": "093bc4244937b51a0c9bd2127f613befa5e670939ecf6abcd8352076d41762b9",
-          "size": 8427
-        },
-        {
-          "path": "_eapi.py",
-          "sha256": "22c455ab12899b8bd16ed801b9d7c832f0ecc65bbe9bc2e686bdf6a4086ecaf2",
-          "size": 6347
-        },
-        {
-          "path": "_multi.py",
-          "sha256": "691abedd612bb5dbe9754c0c38e66122f6acceab47810a465182896fe8678c77",
-          "size": 15356
-        },
-        {
-          "path": "config.json",
-          "sha256": "4968a8831f97a46fc90d1781f165293c0ca5fbb6cd06a366d27ff7f99e96f681",
-          "size": 497
-        },
-        {
-          "path": "display.html",
-          "sha256": "ba9dc000a6ef8ff55c3d05e3746b7bfb22df55f9a2ce4564e0b15fd459a2ccdc",
-          "size": 102847
-        },
-        {
-          "path": "netease_api.py",
-          "sha256": "3238d865206af5eab2898e11a58e2aaf01c9707a564302271755ab6a39876ec6",
-          "size": 20515
         }
       ]
     }
