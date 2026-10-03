@@ -22,11 +22,12 @@ from core.plugin_manager import BasePlugin
 # ==================== 工具函数 ====================
 
 def _get_chinese_font(size: int):
-    """获取中文字体。优先用插件自带的悠哉字体，fallback 到系统字体。"""
+    """获取中文字体。统一悠哉字体 web/static/fonts/yozai.ttf，fallback 到系统字体。"""
     from PIL import ImageFont
 
-    # 1. 插件自带悠哉字体（优先级最高）
-    fp = os.path.join(os.path.dirname(__file__), 'fonts', 'Yozai-Regular.ttf')
+    # 1. 统一悠哉字体（唯一副本在项目根 web/static/fonts/）
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fp = os.path.join(_root, 'web', 'static', 'fonts', 'yozai.ttf')
     if os.path.exists(fp):
         try:
             return ImageFont.truetype(fp, size)

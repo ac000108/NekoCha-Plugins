@@ -1,5 +1,5 @@
 {
-  "updated_at": 1790997110,
+  "updated_at": 1791046674,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -40,17 +40,17 @@
     {
       "name": "danmu_show",
       "display_name": "弹幕显示",
-      "version": "1.0.33",
+      "version": "1.0.34",
       "description": "滚动显示直播间各种消息",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "c94277d108f64c3522346f014741191acc1ce17e8767943f2afefcd4ce690f27",
-          "size": 828
+          "sha256": "c381b0563f8e21219cbe2a4194d7bd483c3c27bcbf7e84c370e9de9a99f8de38",
+          "size": 1115
         },
         {
           "path": "config.json",
-          "sha256": "f4a59635fd8a395bc499953462c19c77e78f3e10cadc954b48154c784dd3a28b",
+          "sha256": "067ca1276f0291532023d667b1374c237ec99329ac0af56a2657bf198e1bbd13",
           "size": 261
         },
         {
@@ -63,23 +63,18 @@
     {
       "name": "dynamic_push",
       "display_name": "动态推送",
-      "version": "1.0.22",
+      "version": "1.0.23",
       "description": "监听关注UP主的B站动态，生成卡片图片推送到QQ群。\n\n【配置说明】\n- QQ群号: 推送目标群号\n- 发送文字信息: 是否发送第一条提醒文字（含下方@和提醒文字设置）\n- @全体成员: 提醒消息中是否@全体成员\n- 提醒文字: 第一条提醒消息的文字内容\n- 发送图片卡片: 是否发送第二条动态卡片图片\n- 发送动态链接: 是否发送第三条B站动态链接",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "38a5d6c352b6c061d398c28c41e917acbc6f6f89cbd2561d0d9e6ee63dc255ba",
-          "size": 19120
+          "sha256": "0db01915b0ffe28de6c42e664a46264f730ea7108b71a49d4b9582f41309ec24",
+          "size": 19280
         },
         {
           "path": "config.json",
-          "sha256": "0f86902e6f9a3ed4379bf40b93fc35697db2c9845fccd513f01fb7c9f8304431",
+          "sha256": "8aa85cfe58a75a1a47ecca31f815f5d2bff505b703c8df970310b675bb7a0d1e",
           "size": 800
-        },
-        {
-          "path": "fonts/Yozai-Regular.ttf",
-          "sha256": "4174a0123d90d76b5a617a3cf02d7920edc668e7de80ada3a233c71bd6c03ecc",
-          "size": 15605374
         }
       ]
     },
@@ -150,23 +145,18 @@
     {
       "name": "live_status_notice",
       "display_name": "开播下播通知",
-      "version": "1.3.15",
+      "version": "1.3.16",
       "description": "在直播间开播/下播/切轮播时自动发送弹幕通知，同时调用 NapCat 向 QQ 群发送消息。\n\n支持模板变量：{live_time}（直播时长，仅下播）、{uname}（主播名）、{room_id}（房间号）、{title}（直播标题）。在开播/下播弹幕、开播/下播群文字中使用即可自动替换。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "6b4b55509c779d8085adf16ebcf4c6b15a10200896133c8689ab52a16d662f82",
-          "size": 26025
+          "sha256": "df853373d7233d24c67e63f4f67ef663addb7fd3ada265329bf561637c4dc3f1",
+          "size": 26134
         },
         {
           "path": "config.json",
-          "sha256": "55f714995112eacdbfb0fe5e1834feb0e2ecc9ab2a650b992f2cf218dcb557a2",
+          "sha256": "1e7956ed35e3accd97c58c597decc249f23c705137a40dbce6e313e81a789325",
           "size": 1303
-        },
-        {
-          "path": "fonts/Yozai-Regular.ttf",
-          "sha256": "4174a0123d90d76b5a617a3cf02d7920edc668e7de80ada3a233c71bd6c03ecc",
-          "size": 15605374
         }
       ]
     },

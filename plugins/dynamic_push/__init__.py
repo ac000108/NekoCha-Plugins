@@ -27,7 +27,9 @@ def draw_dynamic_card(msg: dict) -> bytes:
     """根据系统动态消息生成卡片图片"""
     from PIL import Image, ImageDraw, ImageFont
 
-    font_path = os.path.join(os.path.dirname(__file__), 'fonts', 'Yozai-Regular.ttf')
+    # 统一悠哉字体：项目根 web/static/fonts/yozai.ttf（单一副本）
+    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    font_path = os.path.join(_root, 'web', 'static', 'fonts', 'yozai.ttf')
     if not os.path.exists(font_path):
         font_path = None
 
