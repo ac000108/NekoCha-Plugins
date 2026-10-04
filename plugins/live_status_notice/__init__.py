@@ -156,7 +156,7 @@ def _download_image(url: str) -> 'PIL.Image.Image | None':
 def _draw_card(room_id: str, room_info: dict, is_live: bool, footer: str = 'NekoCha Live') -> bytes:
     """绘制开播/下播卡片图片，返回 JPEG bytes.
 
-    封面固定 16:10 (B 站标准直播封面比例).
+    封面固定 4:3 (B 站标准直播封面比例).
     H 动态计算 = 所有元素实际位置 + MARGIN.
     """
     from PIL import Image, ImageDraw, ImageFont
@@ -209,7 +209,7 @@ def _draw_card(room_id: str, room_info: dict, is_live: bool, footer: str = 'Neko
 
     avatar_size = 112
     cover_w = W - MARGIN * 2              # 1280
-    cover_h = int(cover_w * 9 / 16)       # 720  (16:9)
+    cover_h = int(cover_w * 3 / 4)        # 960  (4:3)
     cover_gap = 32
 
     # --- 布局精确计算 ---
