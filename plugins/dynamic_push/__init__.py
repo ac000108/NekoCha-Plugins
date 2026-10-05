@@ -27,15 +27,30 @@ def draw_dynamic_card(msg: dict) -> bytes:
     """根据系统动态消息生成卡片图片"""
     from PIL import Image, ImageDraw, ImageFont
 
-    # 统一悠哉字体：项目根 web/static/fonts/yozai.ttf（单一副本）
-    _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    font_path = os.path.join(_root, 'web', 'static', 'fonts', 'yozai.ttf')
-    if not os.path.exists(font_path):
-        font_path = None
+    # 三级 fallback：lxgw-wenkai.ttf → 系统中文字体 → Pillow 默认
+    try:
+        from core.paths import STATIC_DIR
+        _fp = os.path.join(STATIC_DIR, 'fonts', 'lxgw-wenkai.ttf')
+    except Exception:
+        _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _fp = os.path.join(_root, 'web', 'static', 'fonts', 'lxgw-wenkai.ttf')
+    if not os.path.exists(_fp):
+        _fp = None
+    if not _fp:
+        _windir = os.environ.get('WINDIR', 'C:\\Windows')
+        _font_dir = os.path.join(_windir, 'Fonts')
+        for _cand in ('msyh.ttc', 'msyhbd.ttc', 'simhei.ttf', 'simfang.ttf'):
+            if os.path.exists(os.path.join(_font_dir, _cand)):
+                _fp = os.path.join(_font_dir, _cand); break
+        if not _fp:
+            for _cand in ('/System/Library/Fonts/PingFang.ttc',
+                          '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+                          '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc'):
+                if os.path.exists(_cand): _fp = _cand; break
 
     def font(size):
-        if font_path:
-            return ImageFont.truetype(font_path, size)
+        if _fp:
+            return ImageFont.truetype(_fp, size)
         return ImageFont.load_default()
 
     def wrap_text(draw_obj, text, fnt, max_width):
