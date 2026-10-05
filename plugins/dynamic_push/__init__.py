@@ -27,13 +27,13 @@ def draw_dynamic_card(msg: dict) -> bytes:
     """根据系统动态消息生成卡片图片"""
     from PIL import Image, ImageDraw, ImageFont
 
-    # 三级 fallback：lxgw-wenkai.ttf → 系统中文字体 → Pillow 默认
+    # 三级 fallback：yozai.ttf → 系统中文字体 → Pillow 默认
     try:
         from core.paths import STATIC_DIR
-        _fp = os.path.join(STATIC_DIR, 'fonts', 'lxgw-wenkai.ttf')
+        _fp = os.path.join(STATIC_DIR, 'fonts', 'yozai.ttf')
     except Exception:
         _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        _fp = os.path.join(_root, 'web', 'static', 'fonts', 'lxgw-wenkai.ttf')
+        _fp = os.path.join(_root, 'web', 'static', 'fonts', 'yozai.ttf')
     if not os.path.exists(_fp):
         _fp = None
     if not _fp:

@@ -22,16 +22,16 @@ from core.plugin_manager import BasePlugin
 # ==================== 工具函数 ====================
 
 def _get_chinese_font(size: int):
-    """获取中文字体。统一霞鹜文楷 web/static/fonts/lxgw-wenkai.ttf，fallback 到系统字体。"""
+    """获取中文字体。统一悠哉字体 web/static/fonts/yozai.ttf，fallback 到系统字体。"""
     from PIL import ImageFont
 
-    # 1. 统一霞鹜文楷（通过 core.paths.STATIC_DIR 定位，开发/打包都对）
+    # 1. 统一悠哉字体（通过 core.paths.STATIC_DIR 定位，开发/打包都对）
     try:
         from core.paths import STATIC_DIR
-        fp = os.path.join(STATIC_DIR, 'fonts', 'lxgw-wenkai.ttf')
+        fp = os.path.join(STATIC_DIR, 'fonts', 'yozai.ttf')
     except Exception:
         _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        fp = os.path.join(_root, 'web', 'static', 'fonts', 'lxgw-wenkai.ttf')
+        fp = os.path.join(_root, 'web', 'static', 'fonts', 'yozai.ttf')
     if os.path.exists(fp):
         try:
             return ImageFont.truetype(fp, size)

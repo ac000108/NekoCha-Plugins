@@ -1,5 +1,5 @@
 {
-  "updated_at": 1791172594,
+  "updated_at": 1791172711,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -63,17 +63,17 @@
     {
       "name": "dynamic_push",
       "display_name": "动态推送",
-      "version": "1.0.24",
+      "version": "1.0.25",
       "description": "监听关注UP主的B站动态，生成卡片图片推送到QQ群。\n\n【配置说明】\n- QQ群号: 推送目标群号\n- 发送文字信息: 是否发送第一条提醒文字（含下方@和提醒文字设置）\n- @全体成员: 提醒消息中是否@全体成员\n- 提醒文字: 第一条提醒消息的文字内容\n- 发送图片卡片: 是否发送第二条动态卡片图片\n- 发送动态链接: 是否发送第三条B站动态链接",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "6a19d030ff879710aa2eba42541d31356e7ba49c10406fe080848f77b758060b",
-          "size": 20035
+          "sha256": "d3ec3067a8e92fecbc0890e105fc6b98eea433ab1bfa1b1970414ec1d2061b07",
+          "size": 20017
         },
         {
           "path": "config.json",
-          "sha256": "9c0225303b9d19d4beefb98d7ff56d70ae90f3ef96138ae96d89fbbd23391541",
+          "sha256": "9b2b0b4db6dd682c24be71005fddad40cfd64f992449370613d7794dbc94de8a",
           "size": 800
         }
       ]
@@ -145,17 +145,17 @@
     {
       "name": "live_status_notice",
       "display_name": "开播下播通知",
-      "version": "1.3.18",
+      "version": "1.3.19",
       "description": "在直播间开播/下播/切轮播时自动发送弹幕通知，同时调用 NapCat 向 QQ 群发送消息。\n\n支持模板变量：{live_time}（直播时长，仅下播）、{uname}（主播名）、{room_id}（房间号）、{title}（直播标题）。在开播/下播弹幕、开播/下播群文字中使用即可自动替换。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "8452dfd840e832d952c71416c517ba67ff72a3c594fcba5eaf7f0ee3460cf9e7",
-          "size": 26309
+          "sha256": "314ff897bf914977b4e6ac48c714f61b721c0a0ee11d5a9a43f5b4e7aae41756",
+          "size": 26291
         },
         {
           "path": "config.json",
-          "sha256": "48d80cd2d98b90389c440bcfad30e84a0a663182dc3bbe756cda8aa578afeb1b",
+          "sha256": "c4aa8af7b7172246ffb1af253b8482504591acd5b6934fdb45e7303a283d4659",
           "size": 1303
         }
       ]
