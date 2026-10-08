@@ -1,5 +1,5 @@
 {
-  "updated_at": 1791172711,
+  "updated_at": 1791457701,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -298,6 +298,24 @@
           "path": "display.html",
           "sha256": "e209de16a626c27e61fb395783e98116dbf263a46a454eaed92d6fbe78ffc181",
           "size": 23166
+        }
+      ]
+    },
+    {
+      "name": "blind_box_song",
+      "display_name": "盲盒点歌",
+      "version": "1.0.1",
+      "description": "点歌姬简化版：观众送出盲盒礼物即自动从歌单随机抽歌并发弹幕点歌。\n\n无需弹幕指令、无需确认，一条盲盒消息抽一首歌。",
+      "files": [
+        {
+          "path": "__init__.py",
+          "sha256": "f5a5124c10abe4c3d00838aa99bccd74297f13eddc7ae27881a140d437fa84f9",
+          "size": 1351
+        },
+        {
+          "path": "config.json",
+          "sha256": "c31e0a0e44bd2d78d178556ff13258ea4fe9c93f87fa928a49a4b8a7b26b68bb",
+          "size": 1957
         }
       ]
     }
