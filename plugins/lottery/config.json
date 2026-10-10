@@ -1,6 +1,6 @@
 {
     "name": "抽签插件",
-    "version": "1.0.29",
+    "version": "1.0.30",
     "description": "弹幕抽签功能，展示窗口最佳260x450",
     "mode": "off",
     "display_mode": "floating_display",

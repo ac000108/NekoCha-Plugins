@@ -1,5 +1,5 @@
 {
-  "updated_at": 1791643515,
+  "updated_at": 1791643772,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -163,7 +163,7 @@
     {
       "name": "lottery",
       "display_name": "抽签插件",
-      "version": "1.0.29",
+      "version": "1.0.30",
       "description": "弹幕抽签功能，展示窗口最佳260x450",
       "files": [
         {
@@ -173,13 +173,13 @@
         },
         {
           "path": "config.json",
-          "sha256": "5f1bc3e04432268f078bf4c3922ff4e500b1ead1c6938257f1e117eb2610cda4",
+          "sha256": "c15e21dd8633705ac7a56fd5269e1c5f93eeeb9165f2c4e8bb121757b9276d2f",
           "size": 1613
         },
         {
           "path": "display.html",
-          "sha256": "b62d678df0015d3778db5b01961ce01e0fcc37d45ecde6e3ee239af472a79517",
-          "size": 16584
+          "sha256": "99f9d39edaf4612ca072631e37c1bda86dd11c47431ef04db78a9abfdc30a849",
+          "size": 16585
         }
       ]
     },
