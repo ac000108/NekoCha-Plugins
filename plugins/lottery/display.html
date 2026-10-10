@@ -6,6 +6,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        
         body {
             min-height: 100vh;
             background: transparent;
@@ -304,7 +305,7 @@
                 const response = await fetch(`/rooms/${ROOM_ID}/plugins`);
                 const result = await response.json();
                 if (result.success && result.data) {
-                    const pluginData = result.data.find(p => p.name === PLUGIN_NAME);
+                    const pluginData = (result.data.installed || []).find(p => p.name === PLUGIN_NAME);
                     if (pluginData) {
                         const config = pluginData.config;
                         isRandomMode = config['全随机模式'] || false;
