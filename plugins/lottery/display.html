@@ -462,7 +462,7 @@
                     const msg = JSON.parse(event.data);
                     
                     // 监听配置更新消息，收到后立即刷新配置
-                    if (msg.type === 'config_updated' && msg.plugin === currentPlugin) {
+                    if (msg.type === 'config_updated' && msg.plugin === PLUGIN_NAME) {
                         loadConfig();
                         return;
                     }

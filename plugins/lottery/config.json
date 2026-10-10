@@ -1,6 +1,6 @@
 {
     "name": "抽签插件",
-    "version": "1.0.26",
+    "version": "1.0.27",
     "description": "弹幕抽签功能，展示窗口最佳260x450",
     "mode": "off",
     "display_mode": "floating_display",
@@ -11,6 +11,8 @@
     "全随机模式": false,
     "_group_end_trigger": null,
     "_group_begin_signs": null,
+    "width": 260,
+    "height": 450,
     "签文列表": [
         "「平安签」岁岁无忧，日日皆安",
         "「财运签」财源滚滚，荷包鼓鼓",

@@ -1,5 +1,5 @@
 {
-  "updated_at": 1791457701,
+  "updated_at": 1791642097,
   "plugins": [
     {
       "name": "blind_box_stats",
@@ -163,23 +163,23 @@
     {
       "name": "lottery",
       "display_name": "抽签插件",
-      "version": "1.0.26",
+      "version": "1.0.27",
       "description": "弹幕抽签功能，展示窗口最佳260x450",
       "files": [
         {
           "path": "__init__.py",
           "sha256": "f5978c2984ad2f63c2e59a61846cd2c4775e2b7a6778503c53475900922d3bbd",
-          "size": 3765
+          "size": 3764
         },
         {
           "path": "config.json",
-          "sha256": "4966c2a6a7820056727335da3e91990c93496eb9eeec78c0ed8f1c3c88e1e5c0",
-          "size": 1574
+          "sha256": "51a9aa2b83328374eb6e073bc18256725ee089ae47ae16bcde8d29d4e297a425",
+          "size": 1613
         },
         {
           "path": "display.html",
-          "sha256": "2e441fff769973fe3d89bdc665bfa8fbe01e99df46a15bba50c3319714dec941",
-          "size": 16559
+          "sha256": "50e544d610f2f2726de7ccfe62cb2369682518726df5a1059e9d29577f729f00",
+          "size": 16557
         }
       ]
     },
@@ -304,17 +304,17 @@
     {
       "name": "blind_box_song",
       "display_name": "盲盒点歌",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "点歌姬简化版：观众送出盲盒礼物即自动从歌单随机抽歌并发弹幕点歌。\n\n无需弹幕指令、无需确认，一条盲盒消息抽一首歌。",
       "files": [
         {
           "path": "__init__.py",
-          "sha256": "f5a5124c10abe4c3d00838aa99bccd74297f13eddc7ae27881a140d437fa84f9",
-          "size": 1351
+          "sha256": "a839aa8415ecf386c61d568af5ee8887d266c305e94ff2f44afe7184042432e8",
+          "size": 1362
         },
         {
           "path": "config.json",
-          "sha256": "c31e0a0e44bd2d78d178556ff13258ea4fe9c93f87fa928a49a4b8a7b26b68bb",
+          "sha256": "72fdce45213a4128752aba93f61518e5d1a2cf5dc2bc9d0de63b6dbe19533906",
           "size": 1957
         }
       ]
